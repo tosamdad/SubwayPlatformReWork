@@ -1,5 +1,0 @@
-
-R2_ACCESS_KEY_ID=aca48f6be7419be56e1e28b376dac5d8
-R2_SECRET_ACCESS_KEY=8566c17fa82ec58f97560e4c49995afdbf2161fc3b3a7c2e9b9f58dc27894059
-R2_ENDPOINT=https://7dcd044301d4adfbf9b27334d7f20bef.r2.cloudflarestorage.com
-R2_BUCKET_NAME=smart-storage
