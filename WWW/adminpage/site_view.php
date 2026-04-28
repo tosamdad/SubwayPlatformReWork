@@ -54,55 +54,62 @@ if (!$platform_id && !empty($all_platforms)) {
 $p_data = null;
 if ($platform_id) {
     try {
-        $stats = [];
-    foreach (['All', 'Safety', 'Worker'] as $role) {
-        $where_role = ($role === 'All') ? "" : " AND role_type = '$role' ";
-        
-        $stmt_total = $pdo->prepare("
-            SELECT SUM(photo_count) FROM items 
-            WHERE item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
-            $where_role
-        ");
-        $stmt_total->execute([$platform_id]);
-        $total_count = (int)$stmt_total->fetchColumn();
-        
-        $stmt_uploaded = $pdo->prepare("
-            SELECT COUNT(*) FROM photo_logs pl
-            JOIN items i ON pl.item_id = i.item_id
-            WHERE pl.platform_id = ? $where_role
-        ");
-        $stmt_uploaded->execute([$platform_id]);
-        $uploaded_count = (int)$stmt_uploaded->fetchColumn();
-        
-        $progress = ($total_count > 0) ? round(($uploaded_count / $total_count) * 100) : 0;
-        
-        $stats[$role] = [
-            'total' => $total_count,
-            'uploaded' => $uploaded_count,
-            'progress' => $progress
-        ];
-    }
-    
-    $p_stmt = $pdo->prepare("SELECT * FROM platforms WHERE platform_id = ?");
-    $p_stmt->execute([$platform_id]);
-    $p_info = $p_stmt->fetch();
-    
-    $p_data = [
-        'info' => $p_info,
-        'stats' => $stats
-    ];
+        $admin_item_filter = "";
+        if ($role === 'Admin') {
+            $admin_item_filter = " AND admin_id = " . $pdo->quote($user_id);
+        }
 
-    // 상세 공정 리스트 조회
-    $where_role_sql = ($role_filter === 'All') ? "" : " AND i.role_type = '$role_filter' ";
-    $stmt_items = $pdo->prepare("
-        SELECT i.*
-        FROM items i
-        WHERE i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
-        $where_role_sql
-        ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC
-    ");
-    $stmt_items->execute([$platform_id]);
-    $items = $stmt_items->fetchAll();
+        $stats = [];
+        foreach (['All', 'Safety', 'Worker'] as $r) {
+            $where_role = ($r === 'All') ? "" : " AND role_type = '$r' ";
+            
+            $stmt_total = $pdo->prepare("
+                SELECT SUM(photo_count) FROM items 
+                WHERE item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
+                $admin_item_filter
+                $where_role
+            ");
+            $stmt_total->execute([$platform_id]);
+            $total_count = (int)$stmt_total->fetchColumn();
+            
+            $stmt_uploaded = $pdo->prepare("
+                SELECT COUNT(*) FROM photo_logs pl
+                JOIN items i ON pl.item_id = i.item_id
+                WHERE pl.platform_id = ? $admin_item_filter $where_role
+            ");
+            $stmt_uploaded->execute([$platform_id]);
+            $uploaded_count = (int)$stmt_uploaded->fetchColumn();
+            
+            $progress = ($total_count > 0) ? round(($uploaded_count / $total_count) * 100) : 0;
+            
+            $stats[$r] = [
+                'total' => $total_count,
+                'uploaded' => $uploaded_count,
+                'progress' => $progress
+            ];
+        }
+        
+        $p_stmt = $pdo->prepare("SELECT * FROM platforms WHERE platform_id = ?");
+        $p_stmt->execute([$platform_id]);
+        $p_info = $p_stmt->fetch();
+        
+        $p_data = [
+            'info' => $p_info,
+            'stats' => $stats
+        ];
+
+        // 상세 공정 리스트 조회
+        $where_role_sql = ($role_filter === 'All') ? "" : " AND i.role_type = '$role_filter' ";
+        $stmt_items = $pdo->prepare("
+            SELECT i.*
+            FROM items i
+            WHERE i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
+            $admin_item_filter
+            $where_role_sql
+            ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC
+        ");
+        $stmt_items->execute([$platform_id]);
+        $items = $stmt_items->fetchAll();
 
     // 모든 로그를 가져와서 [item_id][photo_index] 형태로 맵핑
     $item_logs = [];
