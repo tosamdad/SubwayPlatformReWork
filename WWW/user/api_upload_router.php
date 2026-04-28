@@ -15,7 +15,7 @@ if (!$user_id) {
 
 // 1. 관리자(Admin)의 Storage Config 찾기
 $admin_id = $user_id; // 본인이 Admin이면 본인
-if ($role_type === 'Worker') {
+if ($role_type === 'Worker' || $role_type === 'Safety') {
     $admin_id = $_SESSION['parent_admin_id'] ?? '';
 }
 
@@ -29,7 +29,7 @@ if ($admin_id) {
             SELECT sc.type, sc.credentials, sc.base_url 
             FROM members m 
             JOIN storage_configs sc ON m.storage_config_id = sc.config_id 
-            WHERE m.user_id = ?
+            WHERE m.member_id = ?
         ");
         $stmt->execute([$admin_id]);
         $config = $stmt->fetch();
@@ -47,8 +47,7 @@ switch ($storage_type) {
         require_once 'storage_adapters/ftp.php';
         break;
     case 'r2':
-        // R2는 Presigned URL로 직접 업로드하므로 이 라우터로 바이너리가 오면 안됨
-        echo json_encode(['success' => false, 'message' => 'R2 스토리지는 다이렉트 업로드만 지원합니다.']);
+        require_once 'storage_adapters/r2.php';
         break;
     case 'local':
     default:

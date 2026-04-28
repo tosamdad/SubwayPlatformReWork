@@ -21,14 +21,14 @@ if (!$item_id || !$platform_id) {
 
 $role_type = $_SESSION['role_type'] ?? '';
 $admin_id = $user_id; 
-if ($role_type === 'Worker') {
+if ($role_type === 'Worker' || $role_type === 'Safety') {
     $admin_id = $_SESSION['parent_admin_id'] ?? '';
 }
 
 $storage_type = 'local';
 if ($admin_id) {
     try {
-        $stmt_config = $pdo->prepare("SELECT sc.type FROM members m JOIN storage_configs sc ON m.storage_config_id = sc.config_id WHERE m.user_id = ?");
+        $stmt_config = $pdo->prepare("SELECT sc.type FROM members m JOIN storage_configs sc ON m.storage_config_id = sc.config_id WHERE m.member_id = ?");
         $stmt_config->execute([$admin_id]);
         $config_type = $stmt_config->fetchColumn();
         if ($config_type) $storage_type = $config_type;
