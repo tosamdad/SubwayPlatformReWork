@@ -1,0 +1,74 @@
+name: Daily Secure DB Backup (FTP Upload)
+
+on:
+  schedule:
+    - cron: '0 17 * * *' # 한국시간 새벽 2시 (UTC 17:00)
+  workflow_dispatch: # 수동 실행 버튼
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Request Backup and Download
+        run: |
+          # 1. 서버의 PHP 스크립트 호출 (토큰 포함)
+          ZIP_NAME=$(curl -s "https://korailpform.mycafe24.com/adminpage/backup_script.php?token=018ad578c4f708e4_SubwayPlatformReWork")
+          
+          # 파일명이 정상적으로 반환되었는지 확인
+          if [[ $ZIP_NAME == *"db_backup"* ]]; then
+            # 2. 임시 폴더 생성
+            mkdir -p AutoBack
+            
+            # 3. 생성된 ZIP 파일을 AutoBack 폴더 안으로 다운로드
+            curl -L -o "AutoBack/$ZIP_NAME" "https://korailpform.mycafe24.com/AutoBack/$ZIP_NAME"
+            
+            echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+            echo "FILE_PATH=AutoBack/$ZIP_NAME" >> $GITHUB_ENV
+            echo "성공적으로 다운로드: AutoBack/$ZIP_NAME"
+          else
+            echo "백업 실패 또는 토큰 불일치: $ZIP_NAME"
+            exit 1
+          fi
+
+      # ---------------------------------------------------------
+      # 첫 번째 FTP 서버 업로드 (NAS)
+      # ---------------------------------------------------------
+      - name: Upload to NAS FTP 1
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.NAS_FTP_SERVER }}
+          username: ${{ secrets.NAS_FTP_ID }}
+          password: ${{ secrets.NAS_FTP_PW }}
+          local-dir: ./AutoBack/
+          server-dir: /Backup_Only/DB/SubwayPlatformReWork/
+          # 특정 파일만 전송 (다른 임시 파일 제외)
+          exclude: |
+            **
+            !${{ env.ZIP_NAME }}
+
+      # ---------------------------------------------------------
+      # (옵션) 두 번째 FTP 서버 업로드 - 필요 없다면 이 step 전체 삭제
+      # ---------------------------------------------------------
+      # - name: Upload to NAS FTP 2
+      #   uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      #   with:
+      #     server: ${{ secrets.NAS_FTP_SERVER_2 }}
+      #     username: ${{ secrets.NAS_FTP_ID_2 }}
+      #     password: ${{ secrets.NAS_FTP_PW_2 }}
+      #     local-dir: ./AutoBack/
+      #     server-dir: /Backup_Only/DB/restaurantcli/
+      #     exclude: |
+      #       **
+      #       !${{ env.ZIP_NAME }}
+
+      - name: Discord Notification
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: ${{ job.status }}
+          content: "🗄️ **지하철 승강장 관리 DB 백업 결과 (FTP 전송)**"
+          description: "파일: ${{ env.ZIP_NAME }}\n전송위치: NAS /Backup_Only/DB/SubwayPlatformReWork\n상태: ${{ job.status }}"

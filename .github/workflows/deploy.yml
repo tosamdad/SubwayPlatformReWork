@@ -1,0 +1,42 @@
+name: Cafe24 Auto Deploy with Notification
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: FTP Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ./
+          protocol: ftp
+          port: 21
+          state-name: .ftp-deploy-sync-state.json
+          timeout: 60000
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .github/**
+
+      # [알림 추가] 배포 결과를 디스코드로 쏩니다!
+      - name: Discord Notification
+        if: always() # 배포가 성공하든 실패하든 무조건 알림을 보냅니다.
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: ${{ job.status }}
+          content: "🚀 **승강장 시공관리 배포 알림**"
+          title: "GitHub Actions 배포 결과"
+          description: "현재 배포 상태: **${{ job.status }}**"
+          color: 0x00ff00 # 성공 시 초록색 표시

@@ -1,9 +1,10 @@
 WWW/inc/db.php
 WWW/IMSI_SETUP/
-개발참고/server_log.txt
+개발참고/
 graphify-out/
 *.sql
 _run_gemini.bat
 _scrcpy_start.bat
 _start_webserver.bat
 MEMORY.md
+.gitignore
