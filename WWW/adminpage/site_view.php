@@ -293,10 +293,10 @@ if ($platform_id) {
                                             // 관리자는 모든 사진을 수정/삭제할 수 있도록 허용
                                             $is_owner = true; 
                                         ?>
-                                            <div class="admin-photo-slot" onclick="<?php echo $has_p ? "openImageViewer('../{$l['photo_url']}?t=".time()."', {$item['item_id']}, ".($is_owner?'true':'false').", $i)" : "startCapture({$item['item_id']}, $i)"; ?>">
+                                            <div class="admin-photo-slot" onclick="<?php echo $has_p ? "openImageViewer('../view_photo.php?path=".urlencode($l['photo_url'])."&t=".time()."', {$item['item_id']}, ".($is_owner?'true':'false').", $i)" : "startCapture({$item['item_id']}, $i)"; ?>">
                                                 <span class="slot-label"><?php echo str_pad($i, 2, '0', STR_PAD_LEFT); ?></span>
                                                 <?php if ($has_p): ?>
-                                                    <img src="../<?php echo h($l['photo_url']); ?>?t=<?php echo time(); ?>">
+                                                    <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>">
                                                 <?php else: ?>
                                                     <div class="empty-label"><i class="bi bi-camera"></i></div>
                                                 <?php endif; ?>
@@ -313,7 +313,7 @@ if ($platform_id) {
                                     <div id="slot-<?php echo $item['item_id']; ?>">
                                         <?php if ($has_p): ?>
                                             <div class="position-relative">
-                                                <img src="../<?php echo h($l['photo_url']); ?>?t=<?php echo time(); ?>" class="photo-preview shadow-sm" style="cursor: pointer;" alt="공정사진" onclick="openImageViewer('../<?php echo h($l['photo_url']); ?>?t=<?php echo time(); ?>', <?php echo $item['item_id']; ?>, <?php echo $is_owner ? 'true' : 'false'; ?>, 1)">
+                                                <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>" class="photo-preview shadow-sm" style="cursor: pointer;" alt="공정사진" onclick="openImageViewer('../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>', <?php echo $item['item_id']; ?>, <?php echo $is_owner ? 'true' : 'false'; ?>, 1)">
                                                 <?php if ($is_owner): ?>
                                                 <div class="position-absolute top-0 end-0 m-2">
                                                     <button class="btn btn-sm btn-light rounded-circle shadow-sm me-1" onclick="startCapture(<?php echo $item['item_id']; ?>, 1)" title="사진 변경"><i class="bi bi-camera"></i></button>

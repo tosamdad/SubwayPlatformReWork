@@ -290,7 +290,7 @@ try {
                                 <?php foreach ($recent_activities as $act): ?>
                                 <tr>
                                     <td>
-                                        <img src="../<?php echo h($act['photo_url']); ?>" class="recent-img border" alt="사진">
+                                        <img src="../view_photo.php?path=<?php echo urlencode($act['photo_url']); ?>" class="recent-img border" alt="사진">
                                     </td>
                                     <td>
                                         <div class="fw-bold small"><?php echo h($act['site_name']); ?></div>

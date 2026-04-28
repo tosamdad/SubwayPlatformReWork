@@ -422,10 +422,10 @@ include_once 'inc/nav.php';
                     ?>
                         <div class="slot-wrapper">
                             <div class="multi-slot <?php echo $has_p ? 'has-photo' : ''; ?>" 
-                                 onclick="<?php echo $has_p ? "openImageViewer('../{$p_path}?t=".time()."', {$item['item_id']}, " . ($is_own ? 'true' : 'false') . ", $i)" : "startCapture({$item['item_id']}, $i)"; ?>">
+                                 onclick="<?php echo $has_p ? "openImageViewer('../view_photo.php?path=".urlencode($p_path)."&t=".time()."', {$item['item_id']}, " . ($is_own ? 'true' : 'false') . ", $i)" : "startCapture({$item['item_id']}, $i)"; ?>">
                                 <span class="slot-idx"><?php echo $idx_label; ?></span>
                                 <?php if ($has_p): ?>
-                                    <img src="../<?php echo $p_path; ?>?t=<?php echo time(); ?>">
+                                    <img src="../view_photo.php?path=<?php echo urlencode($p_path); ?>&t=<?php echo time(); ?>">
                                     <?php if ($is_oth): ?>
                                         <div class="status-lock-mini"><i class="bi bi-lock-fill"></i></div>
                                     <?php else: ?>
@@ -475,9 +475,9 @@ include_once 'inc/nav.php';
             ?>
             <div class="slot-wrapper align-items-center">
                 <div class="photo-slot" id="slot-<?php echo $item['item_id']; ?>" 
-                     onclick="<?php echo $has_p ? "openImageViewer('../{$p_path}?t=".time()."', {$item['item_id']}, " . ($is_own ? 'true' : 'false') . ", 1)" : "startCapture({$item['item_id']}, 1)"; ?>">
+                     onclick="<?php echo $has_p ? "openImageViewer('../view_photo.php?path=".urlencode($p_path)."&t=".time()."', {$item['item_id']}, " . ($is_own ? 'true' : 'false') . ", 1)" : "startCapture({$item['item_id']}, 1)"; ?>">
                     <?php if ($has_p): ?>
-                        <img src="../<?php echo $p_path; ?>?t=<?php echo time(); ?>" class="saved-img">
+                        <img src="../view_photo.php?path=<?php echo urlencode($p_path); ?>&t=<?php echo time(); ?>" class="saved-img">
                     <?php else: ?>
                         <i class="bi bi-camera text-primary opacity-50" style="font-size: 2rem;"></i>
                     <?php endif; ?>
