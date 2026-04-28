@@ -2,6 +2,23 @@
 require_once 'inc/db_config.php';
 session_start();
 
+// PC 접속 시 관리자 페이지로 리다이렉트
+$is_mobile = false;
+$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+$mobile_agents = ['Mobile', 'Android', 'iPhone', 'iPad', 'iPod', 'BlackBerry', 'Windows Phone'];
+
+foreach ($mobile_agents as $agent) {
+    if (stripos($user_agent, $agent) !== false) {
+        $is_mobile = true;
+        break;
+    }
+}
+
+if (!$is_mobile) {
+    header('Location: adminpage/index.php');
+    exit;
+}
+
 // 아이디 저장 쿠키 확인
 $remembered_id = $_COOKIE['remember_id'] ?? '';
 
