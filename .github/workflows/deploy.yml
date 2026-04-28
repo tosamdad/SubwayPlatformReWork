@@ -18,6 +18,8 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+	  # [수정] 로컬의 WWW 폴더 안에 있는 내용만 전송합니다.
+          local-dir: WWW/
           server-dir: ./
           protocol: ftp
           port: 21
