@@ -37,11 +37,107 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $photo_url = $existing['photo_url'];
             $log_id = $existing['log_id'];
 
-            // 2. 파일 시스템에서 삭제
+            // 2. 스토리지 타입 확인 및 삭제
             if (!empty($photo_url)) {
-                $file_path = '../' . $photo_url;
-                if (file_exists($file_path)) {
-                    unlink($file_path);
+                $admin_id = $_SESSION['user_id'];
+                if ($_SESSION['role_type'] === 'Worker' || $_SESSION['role_type'] === 'Safety') {
+                    $admin_id = $_SESSION['parent_admin_id'] ?? '';
+                }
+
+                $storage_type = 'local';
+                $credentials = [];
+
+                if ($admin_id) {
+                    try {
+                        $stmt_sc = $pdo->prepare("
+                            SELECT sc.type, sc.credentials 
+                            FROM members m 
+                            JOIN storage_configs sc ON m.storage_config_id = sc.config_id 
+                            WHERE m.member_id = ?
+                        ");
+                        $stmt_sc->execute([$admin_id]);
+                        $config = $stmt_sc->fetch();
+                        if ($config) {
+                            $storage_type = $config['type'];
+                            $credentials = json_decode($config['credentials'], true) ?? [];
+                        }
+                    } catch (Exception $e) {}
+                }
+
+                if ($storage_type === 'r2') {
+                    $access_key = $credentials['access_key'] ?? '';
+                    $secret_key = $credentials['secret_key'] ?? '';
+                    $endpoint = $credentials['endpoint'] ?? '';
+                    $bucket = $credentials['bucket'] ?? '';
+
+                    if ($access_key && $secret_key && $endpoint && $bucket) {
+                        if (!function_exists('getSignatureV4')) {
+                            function getSignatureV4($method, $url, $access_key, $secret_key, $headers = []) {
+                                $parsed_url = parse_url($url);
+                                $host = $parsed_url['host'];
+                                $path = $parsed_url['path'];
+                                
+                                $service = 's3';
+                                $region = 'auto';
+                                
+                                $amz_date = gmdate('Ymd\THis\Z');
+                                $date_stamp = gmdate('Ymd');
+                                
+                                $headers['host'] = $host;
+                                $headers['x-amz-date'] = $amz_date;
+                                $headers['x-amz-content-sha256'] = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+                                
+                                ksort($headers);
+                                
+                                $canonical_headers = '';
+                                $signed_headers = '';
+                                foreach ($headers as $k => $v) {
+                                    $canonical_headers .= strtolower($k) . ':' . trim($v) . "\n";
+                                    $signed_headers .= strtolower($k) . ';';
+                                }
+                                $signed_headers = rtrim($signed_headers, ';');
+                                
+                                $canonical_request = $method . "\n" . $path . "\n\n" . $canonical_headers . "\n" . $signed_headers . "\n" . $headers['x-amz-content-sha256'];
+                                
+                                $algorithm = 'AWS4-HMAC-SHA256';
+                                $credential_scope = $date_stamp . '/' . $region . '/' . $service . '/aws4_request';
+                                
+                                $string_to_sign = $algorithm . "\n" . $amz_date . "\n" . $credential_scope . "\n" . hash('sha256', $canonical_request);
+                                
+                                $k_date = hash_hmac('sha256', $date_stamp, 'AWS4' . $secret_key, true);
+                                $k_region = hash_hmac('sha256', $region, $k_date, true);
+                                $k_service = hash_hmac('sha256', $service, $k_region, true);
+                                $k_signing = hash_hmac('sha256', 'aws4_request', $k_service, true);
+                                
+                                $signature = hash_hmac('sha256', $string_to_sign, $k_signing);
+                                
+                                $authorization = $algorithm . ' Credential=' . $access_key . '/' . $credential_scope . ', SignedHeaders=' . $signed_headers . ', Signature=' . $signature;
+                                
+                                return [
+                                    'Authorization: ' . $authorization,
+                                    'x-amz-date: ' . $amz_date,
+                                    'x-amz-content-sha256: ' . $headers['x-amz-content-sha256']
+                                ];
+                            }
+                        }
+
+                        $request_url = $endpoint . '/' . $bucket . '/' . $photo_url;
+                        $auth_headers = getSignatureV4('DELETE', $request_url, $access_key, $secret_key);
+
+                        $ch = curl_init($request_url);
+                        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, $auth_headers);
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+                        curl_exec($ch);
+                        curl_close($ch);
+                    }
+                } else {
+                    $file_path = '../' . $photo_url;
+                    if (file_exists($file_path)) {
+                        unlink($file_path);
+                    }
                 }
             }
 
