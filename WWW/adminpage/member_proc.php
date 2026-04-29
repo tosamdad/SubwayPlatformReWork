@@ -95,16 +95,16 @@ if ($mode == 'toggle') {
                 $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, role_type = ?, password = ?, parent_admin_id = ?, storage_config_id = ? WHERE member_id = ?");
                 $stmt->execute([$name, $phone, $role_type, $hashed_password, $parent_admin_id, $storage_config_id, $member_id]);
             } else {
-                $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, password = ? WHERE member_id = ?");
-                $stmt->execute([$name, $phone, $hashed_password, $member_id]);
+                $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, role_type = ?, password = ? WHERE member_id = ?");
+                $stmt->execute([$name, $phone, $role_type, $hashed_password, $member_id]);
             }
         } else {
             if ($role == 'SuperAdmin') {
                 $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, role_type = ?, parent_admin_id = ?, storage_config_id = ? WHERE member_id = ?");
                 $stmt->execute([$name, $phone, $role_type, $parent_admin_id, $storage_config_id, $member_id]);
             } else {
-                $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ? WHERE member_id = ?");
-                $stmt->execute([$name, $phone, $member_id]);
+                $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, role_type = ? WHERE member_id = ?");
+                $stmt->execute([$name, $phone, $role_type, $member_id]);
             }
         }
         header("Location: members.php");
