@@ -33,6 +33,17 @@
         <activity
             android:name=".MainActivity"
             android:exported="false" />
+
+        <!-- 파일 공유를 위한 FileProvider -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.tosamdad.subwayplatform.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
             
     </application>
 
