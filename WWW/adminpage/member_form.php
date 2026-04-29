@@ -35,6 +35,7 @@ $admin_list = [];
 if ($role == 'SuperAdmin') {
     $admin_list = $pdo->query("SELECT member_id, name FROM members WHERE role_type = 'Admin' ORDER BY name ASC")->fetchAll();
 }
+$storage_list = $pdo->query("SELECT config_id, name FROM storage_configs ORDER BY config_id ASC")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -106,6 +107,18 @@ if ($role == 'SuperAdmin') {
                                 </select>
                             <?php endif; ?>
                         </div>
+                        <?php if ($role == 'SuperAdmin'): ?>
+                        <div class="col-md-6">
+                            <label class="form-label">스토리지 설정</label>
+                            <select name="storage_config_id" class="form-select" required>
+                                <?php foreach ($storage_list as $storage): ?>
+                                    <option value="<?php echo $storage['config_id']; ?>" <?php echo ($member && $member['storage_config_id'] == $storage['config_id']) ? 'selected' : ''; ?>>
+                                        <?php echo h($storage['name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="d-grid gap-2 border-top pt-4 mt-4">

@@ -39,20 +39,25 @@ if ($mode == 'toggle') {
     $name = $_POST['name'] ?? '';
     $phone = $_POST['phone'] ?? '';
     $role_type = $_POST['role_type'] ?? 'Worker';
+    $storage_config_id = $_POST['storage_config_id'] ?? 1;
     
     // 부모 관리자 결정
     $parent_admin_id = null;
     if ($role == 'Admin') {
         $parent_admin_id = $user_id; // 본인이 부모
+        // 부모의 storage_config_id 상속
+        $stmt_p = $pdo->prepare("SELECT storage_config_id FROM members WHERE member_id = ?");
+        $stmt_p->execute([$user_id]);
+        $storage_config_id = $stmt_p->fetchColumn() ?: 1;
     } else if ($role == 'SuperAdmin') {
-        $parent_admin_id = $_POST['parent_admin_id'] ?? null; // 선택된 관리자
+        $parent_admin_id = $_POST['parent_admin_id'] ?? null;
     }
 
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO members (member_id, password, name, phone, role_type, is_active, parent_admin_id) VALUES (?, ?, ?, ?, ?, 1, ?)");
-        $stmt->execute([$member_id, $hashed_password, $name, $phone, $role_type, $parent_admin_id]);
+        $stmt = $pdo->prepare("INSERT INTO members (member_id, password, name, phone, role_type, is_active, parent_admin_id, storage_config_id) VALUES (?, ?, ?, ?, ?, 1, ?, ?)");
+        $stmt->execute([$member_id, $hashed_password, $name, $phone, $role_type, $parent_admin_id, $storage_config_id]);
         header("Location: members.php");
         exit;
     } catch (Exception $e) {
@@ -71,6 +76,7 @@ if ($mode == 'toggle') {
     $phone = $_POST['phone'] ?? '';
     $role_type = $_POST['role_type'] ?? '';
     $password = $_POST['password'] ?? '';
+    $storage_config_id = $_POST['storage_config_id'] ?? 1;
     
     // 부모 관리자 (SuperAdmin만 수정 가능)
     $parent_admin_id = $_POST['parent_admin_id'] ?? null;
@@ -86,16 +92,16 @@ if ($mode == 'toggle') {
         if (!empty($password)) {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
             if ($role == 'SuperAdmin') {
-                $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, role_type = ?, password = ?, parent_admin_id = ? WHERE member_id = ?");
-                $stmt->execute([$name, $phone, $role_type, $hashed_password, $parent_admin_id, $member_id]);
+                $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, role_type = ?, password = ?, parent_admin_id = ?, storage_config_id = ? WHERE member_id = ?");
+                $stmt->execute([$name, $phone, $role_type, $hashed_password, $parent_admin_id, $storage_config_id, $member_id]);
             } else {
                 $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, password = ? WHERE member_id = ?");
                 $stmt->execute([$name, $phone, $hashed_password, $member_id]);
             }
         } else {
             if ($role == 'SuperAdmin') {
-                $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, role_type = ?, parent_admin_id = ? WHERE member_id = ?");
-                $stmt->execute([$name, $phone, $role_type, $parent_admin_id, $member_id]);
+                $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ?, role_type = ?, parent_admin_id = ?, storage_config_id = ? WHERE member_id = ?");
+                $stmt->execute([$name, $phone, $role_type, $parent_admin_id, $storage_config_id, $member_id]);
             } else {
                 $stmt = $pdo->prepare("UPDATE members SET name = ?, phone = ? WHERE member_id = ?");
                 $stmt->execute([$name, $phone, $member_id]);
