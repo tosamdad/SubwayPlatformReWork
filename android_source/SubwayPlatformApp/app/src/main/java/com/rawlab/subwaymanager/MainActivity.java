@@ -1,4 +1,4 @@
-package com.tosamdad.subwayplatform;
+package com.rawlab.subwaymanager;
 
 import android.Manifest;
 import android.app.Activity;
@@ -32,7 +32,7 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
-    private static final String TARGET_URL = "https://korailpform.mycafe24.com/user/login.php";
+    private static final String TARGET_URL = "https://korailpform.mycafe24.com/";
 
     private ValueCallback<Uri[]> filePathCallback;
     private String cameraPhotoPath;
@@ -151,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (photoFile != null) {
                 Uri photoURI = FileProvider.getUriForFile(this,
-                        "com.tosamdad.subwayplatform.fileprovider",
+                        "com.rawlab.subwaymanager.fileprovider",
                         photoFile);
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
             } else {

@@ -29,6 +29,11 @@
             </intent-filter>
         </activity>
 
+        <!-- 권한 안내 화면 -->
+        <activity
+            android:name=".PermissionActivity"
+            android:exported="false" />
+
         <!-- 메인 웹뷰 화면 -->
         <activity
             android:name=".MainActivity"
@@ -37,7 +42,7 @@
         <!-- 파일 공유를 위한 FileProvider -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.tosamdad.subwayplatform.fileprovider"
+            android:authorities="com.rawlab.subwaymanager.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
