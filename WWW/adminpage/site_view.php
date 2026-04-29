@@ -196,13 +196,20 @@ if ($platform_id) {
                     </div>
                     <h2 class="fw-bold text-dark mb-0"><i class="bi bi-geo-alt-fill text-danger me-2"></i> <?php echo h($site['site_name']); ?> 모니터링</h2>
                 </div>
-                <div class="filter-tabs btn-group p-1 bg-white border rounded-pill shadow-sm">
-                    <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=All" 
-                       class="btn <?php echo $role_filter == 'All' ? 'btn-primary' : 'btn-light'; ?> rounded-pill">전체</a>
-                    <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Safety" 
-                       class="btn <?php echo $role_filter == 'Safety' ? 'btn-warning text-white' : 'btn-light'; ?> rounded-pill">안전</a>
-                    <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Worker" 
-                       class="btn <?php echo $role_filter == 'Worker' ? 'btn-success' : 'btn-light'; ?> rounded-pill">작업자</a>
+                <div class="d-flex gap-3 align-items-center">
+                    <?php if ($platform_id): ?>
+                    <a href="download_zip.php?platform_id=<?php echo $platform_id; ?>" class="btn btn-outline-primary rounded-pill shadow-sm fw-bold px-3">
+                        <i class="bi bi-file-earmark-zip-fill me-1"></i> 사진 다운로드 (ZIP)
+                    </a>
+                    <?php endif; ?>
+                    <div class="filter-tabs btn-group p-1 bg-white border rounded-pill shadow-sm">
+                        <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=All" 
+                           class="btn <?php echo $role_filter == 'All' ? 'btn-primary' : 'btn-light'; ?> rounded-pill">전체</a>
+                        <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Safety" 
+                           class="btn <?php echo $role_filter == 'Safety' ? 'btn-warning text-white' : 'btn-light'; ?> rounded-pill">안전</a>
+                        <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Worker" 
+                           class="btn <?php echo $role_filter == 'Worker' ? 'btn-success' : 'btn-light'; ?> rounded-pill">작업자</a>
+                    </div>
                 </div>
             </header>
 
