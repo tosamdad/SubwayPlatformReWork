@@ -75,7 +75,22 @@ public class MainActivity extends AppCompatActivity {
                     return false;
                 }
 
-                openImageChooser();
+                boolean isCapture = fileChooserParams.isCaptureEnabled();
+                String[] acceptTypes = fileChooserParams.getAcceptTypes();
+                if (acceptTypes != null) {
+                    for (String type : acceptTypes) {
+                        if (type != null && type.toLowerCase().contains("capture")) {
+                            isCapture = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isCapture) {
+                    openCameraDirectly();
+                } else {
+                    openGalleryDirectly();
+                }
                 return true;
             }
         });
@@ -176,6 +191,34 @@ public class MainActivity extends AppCompatActivity {
         chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
 
         startActivityForResult(chooserIntent, INPUT_FILE_REQUEST_CODE);
+    }
+
+    private void openCameraDirectly() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+                takePictureIntent.putExtra("PhotoPath", cameraPhotoPath);
+            } catch (IOException ex) {
+                Toast.makeText(this, "파일 생성 실패", Toast.LENGTH_SHORT).show();
+            }
+
+            if (photoFile != null) {
+                Uri photoURI = FileProvider.getUriForFile(this,
+                        "com.rawlab.subwaymanager.fileprovider",
+                        photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                startActivityForResult(takePictureIntent, INPUT_FILE_REQUEST_CODE);
+            }
+        }
+    }
+
+    private void openGalleryDirectly() {
+        Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+        contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
+        contentSelectionIntent.setType("image/*");
+        startActivityForResult(Intent.createChooser(contentSelectionIntent, "사진 선택"), INPUT_FILE_REQUEST_CODE);
     }
 
     private File createImageFile() throws IOException {

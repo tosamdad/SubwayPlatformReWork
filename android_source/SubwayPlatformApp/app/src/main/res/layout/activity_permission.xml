@@ -43,7 +43,6 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_camera"
-            android:tint="#333333"
             android:layout_marginRight="20dp"/>
 
         <LinearLayout
@@ -81,7 +80,6 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_gallery"
-            android:tint="#333333"
             android:layout_marginRight="20dp"/>
 
         <LinearLayout
@@ -107,7 +105,8 @@
         </LinearLayout>
     </LinearLayout>
 
-    <Spacer
+    <!-- 빈 공간을 채우기 위한 View -->
+    <View
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
@@ -121,17 +120,13 @@
         android:gravity="center"
         android:layout_marginBottom="20dp"/>
 
+    <!-- 에러 방지를 위해 가장 순수한 기본 버튼으로 원복 -->
     <Button
         android:id="@+id/btn_agree"
         android:layout_width="match_parent"
         android:layout_height="55dp"
         android:text="동의하고 시작하기"
         android:textSize="16sp"
-        android:textColor="@color/white"
-        android:backgroundTint="#2196F3"
-        android:insetTop="0dp"
-        android:insetBottom="0dp"
-        android:cornerRadius="8dp"
         android:layout_marginBottom="20dp"/>
 
 </LinearLayout>
