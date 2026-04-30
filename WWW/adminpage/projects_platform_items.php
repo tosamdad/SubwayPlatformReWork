@@ -237,9 +237,29 @@ while($row = $stmt_pcheck->fetch()) {
     </div>
 </div>
 
+<!-- Warning Modal (No Photo Deletion) -->
+<div class="modal fade" id="warningModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <h5 class="fw-bold mb-3">제외 처리 불가</h5>
+                <p class="text-muted mb-4">
+                    해당 항목에 이미 촬영된 사진이 존재합니다.<br>
+                    <span class="text-danger fw-bold">사진을 먼저 삭제한 후</span>에만 제외 설정이 가능합니다.
+                </p>
+                <button type="button" class="btn btn-dark rounded-pill px-5" data-bs-dismiss="modal">확인</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
+const warningModal = new bootstrap.Modal(document.getElementById('warningModal'));
 
 async function loadCategories(selectedCategory = '') {
     const role = document.getElementById('modalRoleType').value;
@@ -260,7 +280,7 @@ async function loadCategories(selectedCategory = '') {
         });
 
         onCategorySelectChange();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Category load error:', e); }
 }
 
 function onCategorySelectChange() {
@@ -302,7 +322,7 @@ async function loadItemsForPosition(category) {
         addItemToModalList('__last__', '--- 가장 마지막에 삽입 ---', true);
         
         container.classList.remove('d-none');
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Item load error:', e); }
 }
 
 function addItemToModalList(id, name, isDefault) {
@@ -367,11 +387,11 @@ document.querySelectorAll('.exclude-check').forEach(ck => {
         const platformId = '<?php echo $platform_id; ?>';
         const isExcluded = this.checked;
 
+        // 사진이 있는 경우 제외 처리 차단
         if (isExcluded && hasPhotos) {
-            if (!confirm('경고: 해당 항목에 이미 촬영된 사진이 존재합니다.\n계속하시겠습니까?')) {
-                this.checked = false;
-                return;
-            }
+            this.checked = false; // 체크박스 원복
+            warningModal.show(); // 전용 팝업 노출
+            return;
         }
 
         try {
@@ -391,12 +411,12 @@ document.querySelectorAll('.exclude-check').forEach(ck => {
                 if (isExcluded) tr.classList.add('excluded');
                 else tr.classList.remove('excluded');
             } else {
-                alert('변경 사항 저장 중 오류가 발생했습니다.');
                 this.checked = !isExcluded; // 상태 복구
+                console.error('Save error:', data.message);
             }
         } catch (e) {
-            alert('네트워크 오류가 발생했습니다.');
             this.checked = !isExcluded;
+            console.error('Network error:', e);
         }
     });
 });
