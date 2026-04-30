@@ -65,7 +65,24 @@ while($row = $stmt_pcheck->fetch()) {
         .section-card { background: white; border-radius: 1rem; padding: 2rem; border: 1px solid #e2e8f0; }
         .item-row { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
         .item-row:hover { background: #f8fafc; }
-        .excluded { background: #fee2e2 !important; color: #991b1b; }
+        .excluded { background: #fff1f2 !important; color: #94a3b8; text-decoration: line-through; position: relative; }
+        .excluded .fw-semibold, .excluded .text-muted { color: #cbd5e1 !important; }
+        .excluded::after { 
+            content: '제외 항목'; 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%) rotate(-5deg); 
+            font-size: 1.5rem; 
+            font-weight: 900; 
+            color: rgba(220, 38, 38, 0.15); 
+            border: 3px solid rgba(220, 38, 38, 0.15); 
+            padding: 0.25rem 1.5rem; 
+            border-radius: 0.5rem; 
+            pointer-events: none; 
+            z-index: 1;
+            text-decoration: none !important;
+        }
         .badge-worker { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
         .badge-safety { background-color: #fefce8; color: #a16207; border: 1px solid #fef08a; }
         .filter-tabs .btn { border-radius: 0.75rem; padding: 0.5rem 1.25rem; font-weight: 600; font-size: 0.9rem; }
