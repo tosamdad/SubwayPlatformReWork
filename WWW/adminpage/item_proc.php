@@ -53,11 +53,20 @@ if ($mode == 'toggle') {
             $pdo->prepare("UPDATE items SET sort_order = sort_order + 1 WHERE role_type = ? AND $where_p")->execute([$role_type]);
             $new_order = 1;
         } else if ($insert_pos == 'after' && $target_item_id) {
-            $stmt = $pdo->prepare("SELECT sort_order FROM items WHERE item_id = ? AND $where_p");
+            $stmt = $pdo->prepare("SELECT sort_order FROM items WHERE item_id = ?");
             $stmt->execute([$target_item_id]);
             $target_order = (int)$stmt->fetchColumn();
-            $pdo->prepare("UPDATE items SET sort_order = sort_order + 1 WHERE role_type = ? AND sort_order > ? AND $where_p")->execute([$role_type, $target_order]);
-            $new_order = $target_order + 1;
+            
+            // 현장 추가 항목인 경우, 마스터와 겹쳐도 되므로 그냥 해당 순서값만 가져옴
+            // (platform_id ASC 정렬 덕분에 마스터 다음 순서로 배치됨)
+            $new_order = $target_order;
+            
+            // 만약 동일한 sort_order를 가진 다른 추가 항목이 있다면 걔네만 밀어줌
+            if ($pid) {
+                $pdo->prepare("UPDATE items SET sort_order = sort_order + 1 WHERE role_type = ? AND platform_id = ? AND sort_order > ?")->execute([$role_type, $pid, $target_order]);
+            } else {
+                $pdo->prepare("UPDATE items SET sort_order = sort_order + 1 WHERE role_type = ? AND platform_id IS NULL AND admin_id = ? AND sort_order > ?")->execute([$role_type, $user_id, $target_order]);
+            }
         } else {
             $stmt_max = $pdo->prepare("SELECT MAX(sort_order) FROM items WHERE role_type = ? AND $where_p");
             $stmt_max->execute([$role_type]);
@@ -124,7 +133,6 @@ if ($mode == 'toggle') {
 
         if (!$check) redirect($role_param, $ref, $pid);
         
-        // 현장 전용 페이지에서 마스터 항목 삭제 방지
         if ($ref == 'platform' && empty($check['platform_id'])) {
             redirect($role_param, $ref, $pid);
         }
@@ -147,25 +155,64 @@ if ($mode == 'toggle') {
     $direction = ($mode == 'move_up') ? 'up' : 'down';
 
     try {
-        // 현재 아이템의 플랫폼 정보 확인
         $stmt_info = $pdo->prepare("SELECT platform_id, admin_id, role_type, sort_order FROM items WHERE item_id = ?");
         $stmt_info->execute([$id]);
         $current = $stmt_info->fetch();
 
-        if ($current) {
-            $curr_order = $current['sort_order'];
+        if ($current && !empty($current['platform_id'])) {
+            $curr_order = (int)$current['sort_order'];
             $role_type = $current['role_type'];
             $c_pid = $current['platform_id'];
             $c_admin = $current['admin_id'];
 
-            $where_p = $c_pid ? "platform_id = " . (int)$c_pid : "platform_id IS NULL AND admin_id = " . $pdo->quote($c_admin);
+            // 현장 전용 페이지에서의 정렬 로직 (마스터 포함 통합 리스트 기준)
+            $where_combined = "( (platform_id IS NULL AND admin_id = " . $pdo->quote($c_admin) . " AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = " . (int)$c_pid . ")) OR platform_id = " . (int)$c_pid . " )";
 
             if ($direction == 'up') {
-                $stmt_target = $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND sort_order < ? AND $where_p ORDER BY sort_order DESC LIMIT 1");
+                $stmt_target = $pdo->prepare("
+                    SELECT item_id, sort_order, platform_id FROM items 
+                    WHERE role_type = ? AND $where_combined 
+                    AND (sort_order < ? OR (sort_order = ? AND IFNULL(platform_id, 0) < IFNULL(?, 0)))
+                    ORDER BY sort_order DESC, IFNULL(platform_id, 0) DESC LIMIT 1
+                ");
+                $stmt_target->execute([$role_type, $curr_order, $curr_order, $c_pid]);
             } else {
-                $stmt_target = $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND sort_order > ? AND $where_p ORDER BY sort_order ASC LIMIT 1");
+                $stmt_target = $pdo->prepare("
+                    SELECT item_id, sort_order, platform_id FROM items 
+                    WHERE role_type = ? AND $where_combined 
+                    AND (sort_order > ? OR (sort_order = ? AND IFNULL(platform_id, 0) > IFNULL(?, 0)))
+                    ORDER BY sort_order ASC, IFNULL(platform_id, 0) ASC LIMIT 1
+                ");
+                $stmt_target->execute([$role_type, $curr_order, $curr_order, $c_pid]);
             }
-            $stmt_target->execute([$role_type, $curr_order]);
+            $target = $stmt_target->fetch();
+
+            if ($target) {
+                if ($target['platform_id'] == $c_pid) {
+                    // 같은 현장 전용 항목끼리는 스왑
+                    $pdo->beginTransaction();
+                    $pdo->prepare("UPDATE items SET sort_order = ? WHERE item_id = ?")->execute([$target['sort_order'], $id]);
+                    $pdo->prepare("UPDATE items SET sort_order = ? WHERE item_id = ?")->execute([$curr_order, $target['item_id']]);
+                    $pdo->commit();
+                } else {
+                    // 마스터 항목을 넘어가는 경우, 마스터 항목의 순서를 따라가되 정렬 조건에 의해 위치 결정
+                    $new_order = (int)$target['sort_order'];
+                    if ($direction == 'up') {
+                        // 위로 가려면 마스터 순서보다 하나 작게 (마스터 앞에 서게 됨)
+                        $new_order = $new_order - 1;
+                    } 
+                    // 아래로 가려면 마스터 순서와 같게 (platform_id ASC 조건에 의해 마스터 뒤에 서게 됨)
+                    $pdo->prepare("UPDATE items SET sort_order = ? WHERE item_id = ?")->execute([$new_order, $id]);
+                }
+            }
+        } else if ($current && empty($current['platform_id'])) {
+            // 마스터 항목 페이지에서의 정렬 (기존 로직 유지)
+            $curr_order = $current['sort_order'];
+            $stmt_target = ($direction == 'up') 
+                ? $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND platform_id IS NULL AND admin_id = ? AND sort_order < ? ORDER BY sort_order DESC LIMIT 1")
+                : $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND platform_id IS NULL AND admin_id = ? AND sort_order > ? ORDER BY sort_order ASC LIMIT 1");
+            
+            $stmt_target->execute([$current['role_type'], $current['admin_id'], $curr_order]);
             $target = $stmt_target->fetch();
 
             if ($target) {

@@ -32,7 +32,7 @@ $items_stmt = $pdo->prepare("
         OR (platform_id = ?)
     )
     $role_sql 
-    ORDER BY role_type, platform_id DESC, sort_order
+    ORDER BY role_type, sort_order ASC, platform_id ASC
 ");
 $items_stmt->execute([$platform['admin_id'], $platform_id]);
 $all_items = $items_stmt->fetchAll();
