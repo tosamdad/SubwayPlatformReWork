@@ -67,7 +67,8 @@ if ($platform_id) {
             $admin_filter_sql = ($role === 'Admin') ? " AND admin_id = " . $pdo->quote($user_id) : "";
             $stmt_total = $pdo->prepare("
                 SELECT SUM(photo_count) FROM items 
-                WHERE (
+                WHERE is_visible_mobile = 1
+                AND (
                     (platform_id IS NULL $admin_filter_sql AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
                     OR platform_id = ?
                 )
@@ -80,11 +81,11 @@ if ($platform_id) {
             $stmt_uploaded = $pdo->prepare("
                 SELECT COUNT(*) FROM photo_logs pl
                 JOIN items i ON pl.item_id = i.item_id
-                WHERE pl.platform_id = ? 
-                AND ( (i.platform_id IS NULL $admin_filter_sql) OR i.platform_id = ? )
+                WHERE pl.platform_id = ? AND i.is_visible_mobile = 1
+                AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )
                 $where_role
             ");
-            $stmt_uploaded->execute([$platform_id, $platform_id]);
+            $stmt_uploaded->execute([$platform_id, $platform_id, $platform_id]);
             $uploaded_count = (int)$stmt_uploaded->fetchColumn();
             
             $progress = ($total_count > 0) ? round(($uploaded_count / $total_count) * 100) : 0;
@@ -162,7 +163,7 @@ if ($platform_id) {
         .photo-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 0.5rem; background: #f1f5f9; }
         .empty-photo { width: 100%; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 0.5rem; color: #94a3b8; }
         
-        /* 제외(숨김) 항목 스타일 */
+        /* 제외 항목 스타일 (레드) */
         .photo-card.excluded { opacity: 0.6; background-color: #f1f5f9 !important; pointer-events: none; border-color: #fca5a5 !important; }
         .photo-card.excluded::after {
             content: '제외 항목';
@@ -174,6 +175,25 @@ if ($platform_id) {
             font-weight: 900;
             color: rgba(239, 68, 68, 0.25);
             border: 4px solid rgba(239, 68, 68, 0.2);
+            padding: 0.4rem 1.2rem;
+            border-radius: 0.75rem;
+            pointer-events: none;
+            z-index: 10;
+            white-space: nowrap;
+        }
+
+        /* 모바일 숨김 스타일 (오렌지/퍼플) */
+        .photo-card.mobile-hidden { opacity: 0.6; background-color: #f1f5f9 !important; pointer-events: none; border-color: #ddd6fe !important; }
+        .photo-card.mobile-hidden::after {
+            content: '모바일 숨김';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-10deg);
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: rgba(139, 92, 246, 0.25);
+            border: 4px solid rgba(139, 92, 246, 0.2);
             padding: 0.4rem 1.2rem;
             border-radius: 0.75rem;
             pointer-events: none;
@@ -307,11 +327,10 @@ if ($platform_id) {
                             ?>
                         </span>
                     </h5>
-                    <div class="text-muted small fw-medium">
-                        항목수: <span class="text-dark fw-bold">
-                            <?php 
                             $active_count = 0;
-                            foreach($items as $it) if(!($it['is_excluded'] > 0)) $active_count++;
+                            foreach($items as $it) {
+                                if(!($it['is_excluded'] > 0) && $it['is_visible_mobile'] == 1) $active_count++;
+                            }
                             echo $active_count;
                             ?>개
                         </span>
@@ -324,6 +343,14 @@ if ($platform_id) {
                     foreach ($items as $item): 
                         $photo_count = (int)($item['photo_count'] ?? 1);
                         $logs = $item_logs[$item['item_id']] ?? [];
+                        
+                        $is_excluded = ($item['is_excluded'] > 0);
+                        $is_mobile_hidden = ($item['is_visible_mobile'] == 0);
+                        
+                        // 클래스 결정
+                        $card_class = "";
+                        if ($is_excluded) $card_class = "excluded";
+                        else if ($is_mobile_hidden) $card_class = "mobile-hidden";
                         
                         if ($current_group !== $item['role_type']):
                             $current_group = $item['role_type'];
@@ -338,7 +365,7 @@ if ($platform_id) {
                         </div>
                     <?php endif; ?>
                     <div class="col-md-4 col-lg-3">
-                        <div class="photo-card h-100 border rounded-3 p-3 bg-white shadow-sm <?php echo ($item['is_excluded'] > 0) ? 'excluded' : ''; ?>" id="card-<?php echo $item['item_id']; ?>">
+                        <div class="photo-card h-100 border rounded-3 p-3 bg-white shadow-sm <?php echo $card_class; ?>" id="card-<?php echo $item['item_id']; ?>">
                             <div class="mb-3">
                                 <?php if ($photo_count > 1): ?>
                                     <div class="admin-photo-grid">
