@@ -63,21 +63,28 @@ if ($platform_id) {
         foreach (['All', 'Safety', 'Worker'] as $r) {
             $where_role = ($r === 'All') ? "" : " AND role_type = '$r' ";
             
+            // 전체 대상 항목 쿼리 (마스터 항목 - 제외 항목 + 현장 전용 항목)
+            $admin_filter_sql = ($role === 'Admin') ? " AND admin_id = " . $pdo->quote($user_id) : "";
             $stmt_total = $pdo->prepare("
                 SELECT SUM(photo_count) FROM items 
-                WHERE item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
-                $admin_item_filter
+                WHERE (
+                    (platform_id IS NULL $admin_filter_sql AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
+                    OR platform_id = ?
+                )
                 $where_role
             ");
-            $stmt_total->execute([$platform_id]);
+            $stmt_total->execute([$platform_id, $platform_id]);
             $total_count = (int)$stmt_total->fetchColumn();
             
+            // 촬영된 사진 수 쿼리
             $stmt_uploaded = $pdo->prepare("
                 SELECT COUNT(*) FROM photo_logs pl
                 JOIN items i ON pl.item_id = i.item_id
-                WHERE pl.platform_id = ? $admin_item_filter $where_role
+                WHERE pl.platform_id = ? 
+                AND ( (i.platform_id IS NULL $admin_filter_sql) OR i.platform_id = ? )
+                $where_role
             ");
-            $stmt_uploaded->execute([$platform_id]);
+            $stmt_uploaded->execute([$platform_id, $platform_id]);
             $uploaded_count = (int)$stmt_uploaded->fetchColumn();
             
             $progress = ($total_count > 0) ? round(($uploaded_count / $total_count) * 100) : 0;
@@ -98,17 +105,19 @@ if ($platform_id) {
             'stats' => $stats
         ];
 
-        // 상세 공정 리스트 조회
+        // 상세 공정 리스트 조회 (화면 표시용)
         $where_role_sql = ($role_filter === 'All') ? "" : " AND i.role_type = '$role_filter' ";
         $stmt_items = $pdo->prepare("
             SELECT i.*
             FROM items i
-            WHERE i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
-            $admin_item_filter
+            WHERE (
+                (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
+                OR i.platform_id = ?
+            )
             $where_role_sql
-            ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC
+            ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.platform_id DESC, i.sort_order ASC
         ");
-        $stmt_items->execute([$platform_id]);
+        $stmt_items->execute([$platform_id, $platform_id]);
         $items = $stmt_items->fetchAll();
 
     // 모든 로그를 가져와서 [item_id][photo_index] 형태로 맵핑

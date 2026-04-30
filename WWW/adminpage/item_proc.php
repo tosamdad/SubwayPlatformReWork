@@ -126,15 +126,13 @@ if ($mode == 'toggle') {
         
         // 현장 전용 페이지에서 마스터 항목 삭제 방지
         if ($ref == 'platform' && empty($check['platform_id'])) {
-            echo "<script>alert('현장 설정 페이지에서는 현장 전용 항목만 삭제할 수 있습니다.'); history.back();</script>";
-            exit;
+            redirect($role_param, $ref, $pid);
         }
 
         $pcheck = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ?");
         $pcheck->execute([$id]);
         if ($pcheck->fetchColumn() > 0) {
-            echo "<script>alert('이미 촬영된 사진이 존재하여 삭제할 수 없습니다.'); history.back();</script>";
-            exit;
+            redirect($role_param, $ref, $pid);
         }
 
         $stmt = $pdo->prepare("DELETE FROM items WHERE item_id = ?");
@@ -149,14 +147,18 @@ if ($mode == 'toggle') {
     $direction = ($mode == 'move_up') ? 'up' : 'down';
 
     try {
-        $where_p = $pid ? "platform_id = " . (int)$pid : "platform_id IS NULL AND admin_id = " . $pdo->quote($user_id);
-        $stmt = $pdo->prepare("SELECT item_id, sort_order, role_type FROM items WHERE item_id = ? AND $where_p");
-        $stmt->execute([$id]);
-        $current = $stmt->fetch();
+        // 현재 아이템의 플랫폼 정보 확인
+        $stmt_info = $pdo->prepare("SELECT platform_id, admin_id, role_type, sort_order FROM items WHERE item_id = ?");
+        $stmt_info->execute([$id]);
+        $current = $stmt_info->fetch();
 
         if ($current) {
             $curr_order = $current['sort_order'];
             $role_type = $current['role_type'];
+            $c_pid = $current['platform_id'];
+            $c_admin = $current['admin_id'];
+
+            $where_p = $c_pid ? "platform_id = " . (int)$c_pid : "platform_id IS NULL AND admin_id = " . $pdo->quote($c_admin);
 
             if ($direction == 'up') {
                 $stmt_target = $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND sort_order < ? AND $where_p ORDER BY sort_order DESC LIMIT 1");

@@ -50,23 +50,29 @@ try {
 
             foreach ($plats as $p) {
                 // 권한별 공정율 계산
-                // 전체 항목 (제외된 것 제외 + 내 권한인 것만)
+                // 전체 항목 (마스터 - 제외 + 현장 전용)
                 $stmt_total = $pdo->prepare("
                     SELECT COUNT(*) FROM items 
-                    WHERE admin_id = ? AND role_type = ? 
-                    AND is_visible_mobile = 1
-                    AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
+                    WHERE role_type = ? AND is_visible_mobile = 1
+                    AND (
+                        (platform_id IS NULL AND admin_id = ? AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
+                        OR platform_id = ?
+                    )
                 ");
-                $stmt_total->execute([$parent_admin_id, $role_type, $p['platform_id']]);
+                $stmt_total->execute([$role_type, $parent_admin_id, $p['platform_id'], $p['platform_id']]);
                 $total_cnt = (int)$stmt_total->fetchColumn();
 
-                // 완료 항목 (내 권한 항목 중 사진 있는 것)
+                // 완료 항목 (해당 승강장에서 촬영된 사진이 있는 항목 수)
                 $stmt_done = $pdo->prepare("
                     SELECT COUNT(DISTINCT pl.item_id) FROM photo_logs pl
                     JOIN items i ON pl.item_id = i.item_id
                     WHERE pl.platform_id = ? AND i.role_type = ?
+                    AND (
+                        (i.platform_id IS NULL AND i.admin_id = ? AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
+                        OR i.platform_id = ?
+                    )
                 ");
-                $stmt_done->execute([$p['platform_id'], $role_type]);
+                $stmt_done->execute([$p['platform_id'], $role_type, $parent_admin_id, $p['platform_id'], $p['platform_id']]);
                 $done_cnt = (int)$stmt_done->fetchColumn();
 
                 $progress = ($total_cnt > 0) ? round(($done_cnt / $total_cnt) * 100) : 0;

@@ -3,32 +3,23 @@ require_once '../inc/db_config.php';
 session_start();
 
 $role = $_SESSION['role_type'] ?? '';
-$user_id = $_SESSION['user_id'] ?? '';
-
 if (!$role || ($role !== 'Admin' && $role !== 'SuperAdmin')) {
-    header('Location: ./index.php');
-    exit;
+    die('접근 권한이 없습니다.');
 }
 
-$platform_id = $_GET['id'] ?? '';
-$role_filter = $_GET['role'] ?? 'All'; // All | Safety | Worker
-if (!$platform_id) die('잘못된 접근입니다.');
+$platform_id = $_GET['id'] ?? 1;
+$role_filter = $_GET['role'] ?? 'Worker'; // All, Safety, Worker
 
-// 승강장 정보 및 소속 정보 가져오기
-$stmt = $pdo->prepare("
-    SELECT p.*, s.site_name, s.site_id, c.const_name, c.admin_id 
-    FROM platforms p 
-    JOIN sites s ON p.site_id = s.site_id 
-    JOIN constructions c ON s.const_id = c.const_id 
-    WHERE p.platform_id = ?
-");
+// 승강장 정보 및 소속 관리자 정보 가져오기
+$stmt = $pdo->prepare("SELECT p.*, s.site_name, c.const_name, c.admin_id FROM platforms p 
+                       JOIN sites s ON p.site_id = s.site_id 
+                       JOIN constructions c ON s.const_id = c.const_id 
+                       WHERE p.platform_id = ?");
 $stmt->execute([$platform_id]);
 $platform = $stmt->fetch();
 
-if (!$platform) die('존재하지 않는 승강장입니다.');
-
-if ($role == 'Admin' && $platform['admin_id'] !== $user_id) {
-    die('접근 권한이 없는 현장입니다.');
+if (!$platform) {
+    die('승강장 정보를 찾을 수 없습니다.');
 }
 
 // 해당 현장의 항목 목록 가져오기 (마스터 항목 + 해당 승강장 전용 항목)
@@ -92,6 +83,24 @@ while($row = $stmt_pcheck->fetch()) {
             z-index: 1;
             text-decoration: none !important;
         }
+        /* 추가 항목 레이어 (푸른색 계열) */
+        .platform-added { position: relative; }
+        .platform-added::before {
+            content: '추가 항목'; 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%) rotate(-5deg); 
+            font-size: 1.5rem; 
+            font-weight: 900; 
+            color: rgba(37, 99, 235, 0.12); 
+            border: 3px solid rgba(37, 99, 235, 0.12); 
+            padding: 0.25rem 1.5rem; 
+            border-radius: 0.5rem; 
+            pointer-events: none; 
+            z-index: 1;
+            text-decoration: none !important;
+        }
         .badge-worker { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
         .badge-safety { background-color: #fefce8; color: #a16207; border: 1px solid #fef08a; }
         .badge-platform { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
@@ -133,6 +142,7 @@ while($row = $stmt_pcheck->fetch()) {
                     <table class="table align-middle">
                         <thead class="table-light">
                             <tr>
+                                <th style="width: 50px;" class="text-center">No</th>
                                 <th style="width: 80px;" class="text-center">제외</th>
                                 <th style="width: 100px;">권한</th>
                                 <th style="width: 120px;">카테고리</th>
@@ -143,12 +153,23 @@ while($row = $stmt_pcheck->fetch()) {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($all_items as $item): 
+                            <?php 
+                            $no = 1;
+                            foreach ($all_items as $item): 
                                 $is_excluded = in_array($item['item_id'], $excluded_ids);
                                 $has_photos = ($photo_counts[$item['item_id']] ?? 0) > 0;
                                 $is_platform_item = !empty($item['platform_id']);
+                                
+                                // 클래스 조합
+                                $row_class = "item-row";
+                                if ($is_excluded) $row_class .= " excluded";
+                                if ($is_platform_item) $row_class .= " platform-added";
                             ?>
-                            <tr class="item-row <?php echo $is_excluded ? 'excluded' : ''; ?>" data-has-photos="<?php echo $has_photos ? '1' : '0'; ?>">
+                            <tr class="<?php echo $row_class; ?>" 
+                                data-has-photos="<?php echo $has_photos ? '1' : '0'; ?>"
+                                data-item-id="<?php echo $item['item_id']; ?>"
+                                data-is-platform="<?php echo $is_platform_item ? '1' : '0'; ?>">
+                                <td class="text-center text-muted small"><?php echo $no++; ?></td>
                                 <td class="text-center">
                                     <div class="form-check d-flex justify-content-center">
                                         <input type="checkbox" value="<?php echo $item['item_id']; ?>" 
@@ -157,26 +178,31 @@ while($row = $stmt_pcheck->fetch()) {
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge rounded-pill <?php echo $item['role_type'] == 'Safety' ? 'badge-safety' : 'badge-worker'; ?>">
-                                        <?php echo $item['role_type'] == 'Safety' ? '안전' : '작업자'; ?>
-                                    </span>
                                     <?php if ($is_platform_item): ?>
-                                        <br><span class="badge rounded-pill badge-platform mt-1" style="font-size: 0.65rem;">현장전용</span>
+                                        <span class="badge rounded-pill badge-platform" style="font-size: 0.65rem;">현장전용</span>
+                                    <?php else: ?>
+                                        <span class="badge rounded-pill <?php echo $item['role_type'] == 'Safety' ? 'badge-safety' : 'badge-worker'; ?>">
+                                            <?php echo $item['role_type'] == 'Safety' ? '안전' : '작업자'; ?>
+                                        </span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-muted small"><?php echo h($item['category_name']); ?></td>
                                 <td class="fw-semibold"><?php echo h($item['item_name']); ?></td>
                                 <td class="text-center small"><?php echo $item['photo_count']; ?>장</td>
                                 <td class="text-center">
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="item_proc.php?mode=move_up&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-outline-secondary"><i class="bi bi-chevron-up"></i></a>
-                                        <a href="item_proc.php?mode=move_down&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-outline-secondary"><i class="bi bi-chevron-down"></i></a>
-                                    </div>
+                                    <?php if ($is_platform_item): ?>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="item_proc.php?mode=move_up&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-outline-secondary"><i class="bi bi-chevron-up"></i></a>
+                                            <a href="item_proc.php?mode=move_down&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-outline-secondary"><i class="bi bi-chevron-down"></i></a>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-muted small">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <?php if ($is_platform_item): ?>
                                         <button type="button" class="btn btn-sm btn-link text-muted p-0 me-2" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($item)); ?>)"><i class="bi bi-pencil-square"></i></button>
-                                        <a href="item_proc.php?mode=delete&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('이 현장 전용 항목을 삭제하시겠습니까?')"><i class="bi bi-trash"></i></a>
+                                        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="confirmDelete(<?php echo $item['item_id']; ?>, <?php echo $has_photos ? 'true' : 'false'; ?>)"><i class="bi bi-trash"></i></button>
                                     <?php else: ?>
                                         <span class="text-muted small">마스터 항목</span>
                                     <?php endif; ?>
@@ -184,7 +210,7 @@ while($row = $stmt_pcheck->fetch()) {
                             </tr>
                             <?php endforeach; ?>
                             <?php if (empty($all_items)): ?>
-                                <tr><td colspan="7" class="text-center py-5 text-muted">등록된 항목이 없습니다.</td></tr>
+                                <tr><td colspan="8" class="text-center py-5 text-muted">등록된 항목이 없습니다.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -255,7 +281,7 @@ while($row = $stmt_pcheck->fetch()) {
     </div>
 </div>
 
-<!-- Warning Modal (No Photo Deletion) -->
+<!-- Warning Modal (Exclusion Blocked) -->
 <div class="modal fade" id="warningModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
@@ -274,10 +300,60 @@ while($row = $stmt_pcheck->fetch()) {
     </div>
 </div>
 
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <i class="bi bi-trash3-fill text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <h5 class="fw-bold mb-3">항목 삭제 확인</h5>
+                <p class="text-muted mb-4">이 현장 전용 항목을 영구히 삭제하시겠습니까?</p>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light rounded-pill flex-fill py-2" data-bs-dismiss="modal">취소</button>
+                    <a id="deleteConfirmBtn" href="#" class="btn btn-danger rounded-pill flex-fill py-2">삭제하기</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Blocked Modal -->
+<div class="modal fade" id="deleteBlockedModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <i class="bi bi-x-circle-fill text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <h5 class="fw-bold mb-3">삭제 불가</h5>
+                <p class="text-muted mb-4">
+                    촬영된 사진이 존재하여 항목을 삭제할 수 없습니다.<br>
+                    <span class="text-danger fw-bold">먼저 모든 사진을 삭제</span>해 주세요.
+                </p>
+                <button type="button" class="btn btn-dark rounded-pill px-5" data-bs-dismiss="modal">확인</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
 const warningModal = new bootstrap.Modal(document.getElementById('warningModal'));
+const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+const deleteBlockedModal = new bootstrap.Modal(document.getElementById('deleteBlockedModal'));
+
+function confirmDelete(itemId, hasPhotos) {
+    if (hasPhotos) {
+        deleteBlockedModal.show();
+    } else {
+        const deleteUrl = `item_proc.php?mode=delete&id=${itemId}&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>`;
+        document.getElementById('deleteConfirmBtn').href = deleteUrl;
+        deleteConfirmModal.show();
+    }
+}
 
 async function loadCategories(selectedCategory = '') {
     const role = document.getElementById('modalRoleType').value;
@@ -286,7 +362,7 @@ async function loadCategories(selectedCategory = '') {
     select.innerHTML = '<option value="">-- 카테고리 선택 --</option><option value="__new__">+ 직접 입력 (새 카테고리)</option>';
     
     try {
-        const res = await fetch(`item_api.php?mode=get_categories&role=${role}`);
+        const res = await fetch(`item_api.php?mode=get_categories&role=${role}&pid=<?php echo $platform_id; ?>`);
         const categories = await res.json();
         
         categories.forEach(cat => {
@@ -330,7 +406,7 @@ async function loadItemsForPosition(category) {
     const list = document.getElementById('modal_item_list');
     
     try {
-        const res = await fetch(`item_api.php?mode=get_items&role=${role}&category=${encodeURIComponent(category)}`);
+        const res = await fetch(`item_api.php?mode=get_items&role=${role}&category=${encodeURIComponent(category)}&pid=<?php echo $platform_id; ?>`);
         const items = await res.json();
         
         list.innerHTML = '';
@@ -375,7 +451,7 @@ function addItemToModalList(id, name, isDefault) {
 
 function openAddModal() {
     document.getElementById('modalMode').value = 'add';
-    document.getElementById('modalTitle').innerText = '새 항목 추가';
+    document.getElementById('modalTitle').innerText = '현장 전용 항목 추가';
     document.getElementById('modalItemId').value = '';
     document.getElementById('modalItemName').value = '';
     document.getElementById('modalPhotoCount').value = '1';
@@ -386,7 +462,7 @@ function openAddModal() {
 
 function openEditModal(item) {
     document.getElementById('modalMode').value = 'edit';
-    document.getElementById('modalTitle').innerText = '항목 수정';
+    document.getElementById('modalTitle').innerText = '현장 전용 항목 수정';
     document.getElementById('modalItemId').value = item.item_id;
     document.getElementById('modalItemName').value = item.item_name;
     document.getElementById('modalPhotoCount').value = item.photo_count;
