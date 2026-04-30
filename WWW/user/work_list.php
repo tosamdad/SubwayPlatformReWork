@@ -43,7 +43,7 @@ try {
             WHERE $role_filter AND i.is_visible_mobile = 1
             AND ( (i.platform_id IS NULL $admin_filter) OR i.platform_id = ? )
             AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
-            ORDER BY i.role_type, i.platform_id DESC, i.sort_order";
+            ORDER BY i.role_type, i.sort_order ASC, i.platform_id ASC";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$platform_id, $platform_id]);
     $items = $stmt->fetchAll();

@@ -115,7 +115,7 @@ if ($platform_id) {
                 OR i.platform_id = ?
             )
             $where_role_sql
-            ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.platform_id DESC, i.sort_order ASC
+            ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC, i.platform_id ASC
         ");
         $stmt_items->execute([$platform_id, $platform_id]);
         $items = $stmt_items->fetchAll();
