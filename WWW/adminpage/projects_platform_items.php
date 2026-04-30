@@ -127,7 +127,7 @@ while($row = $stmt_pcheck->fetch()) {
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary rounded-pill shadow-sm fw-bold px-4" onclick="openAddModal()">
-                        <i class="bi bi-plus-circle me-1"></i> 현재 승강장 전용 항목 추가
+                        <i class="bi bi-plus-circle me-1"></i> <?php echo h($platform['platform_name']); ?> 전용 항목 추가
                     </button>
                     <div class="filter-tabs btn-group p-1 bg-white border rounded-pill shadow-sm">
                         <a href="?id=<?php echo $platform_id; ?>&role=All" class="btn <?php echo $role_filter == 'All' ? 'btn-primary' : 'btn-light'; ?> rounded-pill">전체</a>
