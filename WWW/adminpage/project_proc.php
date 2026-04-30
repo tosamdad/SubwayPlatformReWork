@@ -137,21 +137,39 @@ if ($mode == 'add_const') {
 } else if ($mode == 'update_excluded_items') {
     $platform_id = $_POST['platform_id'] ?? '';
     $exclude_ids = $_POST['exclude_ids'] ?? [];
+    $role_filter = $_POST['role_filter'] ?? 'All';
 
     try {
         $pdo->beginTransaction();
-        $pdo->prepare("DELETE FROM platform_excluded_items WHERE platform_id = ?")->execute([$platform_id]);
+        
+        // 해당 권한(role_filter)에 해당하는 항목들만 먼저 가져와서 그 중에서만 제외 처리 (다른 권한의 제외 상태 보존)
+        if ($role_filter === 'All') {
+            $pdo->prepare("DELETE FROM platform_excluded_items WHERE platform_id = ?")->execute([$platform_id]);
+        } else {
+            // 현재 role_filter에 해당하는 항목들 중 제외 리스트에서 삭제
+            $pdo->prepare("
+                DELETE FROM platform_excluded_items 
+                WHERE platform_id = ? 
+                AND item_id IN (SELECT item_id FROM items WHERE role_type = ?)
+            ")->execute([$platform_id, $role_filter]);
+        }
+
         if (!empty($exclude_ids)) {
             $ins = $pdo->prepare("INSERT INTO platform_excluded_items (platform_id, item_id) VALUES (?, ?)");
             foreach ($exclude_ids as $item_id) {
-                $ins->execute([$platform_id, $item_id]);
+                // 이미 들어있는지 체크 (All이 아닐 때 중복 방지)
+                $check = $pdo->prepare("SELECT COUNT(*) FROM platform_excluded_items WHERE platform_id = ? AND item_id = ?");
+                $check->execute([$platform_id, $item_id]);
+                if ($check->fetchColumn() == 0) {
+                    $ins->execute([$platform_id, $item_id]);
+                }
             }
         }
         $pdo->commit();
-        header("Location: projects_platform_items.php?id=$platform_id&msg=success");
+        header("Location: projects_platform_items.php?id=$platform_id&role=$role_filter&msg=success");
     } catch (Exception $e) {
-        $pdo->rollBack();
-        echo "<script>alert('저장 오류'); history.back();</script>";
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        echo "<script>alert('저장 오류: " . addslashes($e->getMessage()) . "'); history.back();</script>";
     }
 }
 ?>

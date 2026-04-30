@@ -11,20 +11,29 @@ if (!$role || ($role !== 'Admin' && $role !== 'SuperAdmin')) {
 
 $mode = $_REQUEST['mode'] ?? '';
 $role_param = $_REQUEST['role'] ?? 'Worker';
+$ref = $_REQUEST['ref'] ?? 'master'; // master | platform
+$pid = $_REQUEST['pid'] ?? ''; // platform_id if ref is platform
+
+// 공통 리다이렉트 함수
+function redirect($role_param, $ref, $pid) {
+    if ($ref === 'platform' && $pid) {
+        header("Location: projects_platform_items.php?id=$pid&role=$role_param");
+    } else {
+        header("Location: items.php?role=$role_param");
+    }
+    exit;
+}
 
 if ($mode == 'toggle') {
     $id = $_GET['id'] ?? '';
     $status = $_GET['status'] ?? 1;
 
     try {
-        // 본인 소유 항목만 토글 가능
         $stmt = $pdo->prepare("UPDATE items SET is_visible_mobile = ? WHERE item_id = ? AND admin_id = ?");
         $stmt->execute([$status, $id, $user_id]);
-        header("Location: items.php?role=$role_param");
-        exit;
+        redirect($role_param, $ref, $pid);
     } catch (Exception $e) {
-        header("Location: items.php?role=$role_param&msg=" . urlencode('상태 변경 중 오류가 발생했습니다.'));
-        exit;
+        redirect($role_param, $ref, $pid);
     }
 
 } else if ($mode == 'add') {
@@ -37,7 +46,6 @@ if ($mode == 'toggle') {
 
     try {
         $pdo->beginTransaction();
-
         $new_order = 0;
         $admin_quote = $pdo->quote($user_id);
 
@@ -64,12 +72,10 @@ if ($mode == 'toggle') {
         $pdo->prepare("UPDATE items SET item_code = ? WHERE item_id = ?")->execute([$code, $new_id]);
         
         $pdo->commit();
-        header("Location: items.php?role=$role_type");
-        exit;
+        redirect($role_type, $ref, $pid);
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        header("Location: items.php?role=$role_type&msg=" . urlencode('등록 중 오류가 발생했습니다.'));
-        exit;
+        redirect($role_type, $ref, $pid);
     }
 
 } else if ($mode == 'edit') {
@@ -80,30 +86,26 @@ if ($mode == 'toggle') {
     $role_type = $_POST['role_type'] ?? '';
 
     try {
-        // 기존 사진 개수 확인
         $stmt_old = $pdo->prepare("SELECT photo_count FROM items WHERE item_id = ? AND admin_id = ?");
         $stmt_old->execute([$item_id, $user_id]);
         $old_count = (int)($stmt_old->fetchColumn() ?: 1);
 
-        // 사진 개수를 줄이는 경우 체크
         if ($photo_count < $old_count) {
-            // 사라질 슬롯 범위(photo_index > 새 개수)에 이미 촬영된 사진이 있는지 확인
             $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ? AND photo_index > ?");
             $stmt_check->execute([$item_id, $photo_count]);
             if ((int)$stmt_check->fetchColumn() > 0) {
-                header("Location: item_form.php?id=$item_id&role=$role_type&msg=" . rawurlencode("이미 촬영된 사진이 존재하여 개수를 줄일 수 없습니다.\n해당 슬롯의 사진을 먼저 삭제해 주세요."));
+                $err = rawurlencode("이미 촬영된 사진이 존재하여 개수를 줄일 수 없습니다.");
+                if ($ref === 'platform') header("Location: projects_platform_items.php?id=$pid&role=$role_param&msg=$err");
+                else header("Location: item_form.php?id=$item_id&role=$role_type&msg=$err");
                 exit;
             }
         }
 
-        // 본인 소유 항목만 수정 가능
         $stmt = $pdo->prepare("UPDATE items SET category_name = ?, item_name = ?, photo_count = ?, role_type = ? WHERE item_id = ? AND admin_id = ?");
         $stmt->execute([$category_name, $item_name, $photo_count, $role_type, $item_id, $user_id]);
-        header("Location: items.php?role=$role_type");
-        exit;
+        redirect($role_type, $ref, $pid);
     } catch (Exception $e) {
-        header("Location: items.php?role=$role_type&msg=" . urlencode('수정 중 오류가 발생했습니다.'));
-        exit;
+        redirect($role_type, $ref, $pid);
     }
 
 } else if ($mode == 'update_photo_count') {
@@ -111,7 +113,6 @@ if ($mode == 'toggle') {
     $count = (int)($_GET['count'] ?? 1);
 
     try {
-        // 기존 사진 개수 확인 및 줄이는 경우 체크
         $stmt_old = $pdo->prepare("SELECT photo_count FROM items WHERE item_id = ? AND admin_id = ?");
         $stmt_old->execute([$id, $user_id]);
         $old_count = (int)($stmt_old->fetchColumn() ?: 1);
@@ -120,38 +121,31 @@ if ($mode == 'toggle') {
             $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ? AND photo_index > ?");
             $stmt_check->execute([$id, $count]);
             if ((int)$stmt_check->fetchColumn() > 0) {
-                header("Location: items.php?role=$role_param&msg=" . urlencode("촬영된 사진이 있어 개수를 줄일 수 없습니다."));
-                exit;
+                redirect($role_param, $ref, $pid);
             }
         }
 
         $stmt = $pdo->prepare("UPDATE items SET photo_count = ? WHERE item_id = ? AND admin_id = ?");
         $stmt->execute([$count, $id, $user_id]);
-        header("Location: items.php?role=$role_param");
-        exit;
+        redirect($role_param, $ref, $pid);
     } catch (Exception $e) {
-        header("Location: items.php?role=$role_param&msg=" . urlencode('사진 개수 변경 중 오류가 발생했습니다.'));
-        exit;
+        redirect($role_param, $ref, $pid);
     }
 } else if ($mode == 'delete') {
     $id = $_GET['id'] ?? '';
 
     try {
-        // 본인 소유 여부 및 촬영 기록 체크
         $check = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ?");
         $check->execute([$id]);
         if ($check->fetchColumn() > 0) {
-            header("Location: items.php?role=$role_param&msg=" . urlencode('촬영 기록이 존재하는 항목은 삭제할 수 없습니다.'));
-            exit;
+            redirect($role_param, $ref, $pid);
         }
 
         $stmt = $pdo->prepare("DELETE FROM items WHERE item_id = ? AND admin_id = ?");
         $stmt->execute([$id, $user_id]);
-        header("Location: items.php?role=$role_param");
-        exit;
+        redirect($role_param, $ref, $pid);
     } catch (Exception $e) {
-        header("Location: items.php?role=$role_param&msg=" . urlencode('삭제 중 오류가 발생했습니다.'));
-        exit;
+        redirect($role_param, $ref, $pid);
     }
 
 } else if ($mode == 'move_up' || $mode == 'move_down') {
@@ -183,57 +177,38 @@ if ($mode == 'toggle') {
                 $pdo->commit();
             }
         }
-        header("Location: items.php?role=$role_param");
-        exit;
+        redirect($role_param, $ref, $pid);
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        header("Location: items.php?role=$role_param&msg=" . urlencode('이동 중 오류가 발생했습니다.'));
-        exit;
+        redirect($role_param, $ref, $pid);
     }
 } else if ($mode == 'import_format') {
-    // 다른 관리자의 포맷 일괄 복사
     $source_admin_id = $_GET['source_admin_id'] ?? '';
     if (!$source_admin_id) die("Source Admin ID is required.");
 
     try {
         $pdo->beginTransaction();
-
-        // 1. 소스 관리자의 모든 항목 가져오기
         $stmt_source = $pdo->prepare("SELECT * FROM items WHERE admin_id = ? ORDER BY role_type, sort_order ASC");
         $stmt_source->execute([$source_admin_id]);
         $source_items = $stmt_source->fetchAll();
 
         foreach ($source_items as $si) {
-            // 2. 현재 내 리스트의 마지막 순서 확인 (각 권한별)
             $stmt_max = $pdo->prepare("SELECT MAX(sort_order) FROM items WHERE role_type = ? AND admin_id = ?");
             $stmt_max->execute([$si['role_type'], $user_id]);
             $new_order = (int)$stmt_max->fetchColumn() + 1;
 
-            // 3. 복사본 삽입
             $stmt_ins = $pdo->prepare("INSERT INTO items (category_name, item_name, photo_count, role_type, is_visible_mobile, sort_order, admin_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt_ins->execute([
-                $si['category_name'],
-                $si['item_name'],
-                $si['photo_count'],
-                $si['role_type'],
-                $si['is_visible_mobile'],
-                $new_order,
-                $user_id
-            ]);
+            $stmt_ins->execute([$si['category_name'], $si['item_name'], $si['photo_count'], $si['role_type'], $si['is_visible_mobile'], $new_order, $user_id]);
 
-            // 4. 새 아이템 코드 생성
             $new_id = $pdo->lastInsertId();
             $new_code = 'D' . str_pad($new_id, 4, '0', STR_PAD_LEFT);
             $pdo->prepare("UPDATE items SET item_code = ? WHERE item_id = ?")->execute([$new_code, $new_id]);
         }
-
         $pdo->commit();
-        header("Location: items.php?role=$role_param");
-        exit;
+        redirect($role_param, $ref, $pid);
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        header("Location: items.php?role=$role_param&msg=" . urlencode('포맷 가져오기 중 오류가 발생했습니다: ' . $e->getMessage()));
-        exit;
+        redirect($role_param, $ref, $pid);
     }
 }
 ?>
