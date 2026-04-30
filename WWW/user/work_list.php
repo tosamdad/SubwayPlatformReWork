@@ -41,11 +41,11 @@ try {
 
     $sql = "SELECT i.* FROM items i 
             WHERE $role_filter AND i.is_visible_mobile = 1
-            $admin_filter
+            AND ( (i.platform_id IS NULL $admin_filter) OR i.platform_id = ? )
             AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)
-            ORDER BY i.category_name, i.sort_order";
+            ORDER BY i.role_type, i.platform_id DESC, i.sort_order";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$platform_id]);
+    $stmt->execute([$platform_id, $platform_id]);
     $items = $stmt->fetchAll();
 
     // 모든 로그를 가져와서 [item_id][photo_index] 형태로 맵핑

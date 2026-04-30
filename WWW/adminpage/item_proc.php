@@ -46,28 +46,28 @@ if ($mode == 'toggle') {
 
     try {
         $pdo->beginTransaction();
-        $new_order = 0;
-        $admin_quote = $pdo->quote($user_id);
-
+        
+        $where_p = $pid ? "platform_id = " . (int)$pid : "platform_id IS NULL AND admin_id = " . $pdo->quote($user_id);
+        
         if ($insert_pos == 'first') {
-            $pdo->prepare("UPDATE items SET sort_order = sort_order + 1 WHERE role_type = ? AND admin_id = $admin_quote")->execute([$role_type]);
+            $pdo->prepare("UPDATE items SET sort_order = sort_order + 1 WHERE role_type = ? AND $where_p")->execute([$role_type]);
             $new_order = 1;
         } else if ($insert_pos == 'after' && $target_item_id) {
-            $stmt = $pdo->prepare("SELECT sort_order FROM items WHERE item_id = ? AND admin_id = $admin_quote");
+            $stmt = $pdo->prepare("SELECT sort_order FROM items WHERE item_id = ? AND $where_p");
             $stmt->execute([$target_item_id]);
             $target_order = (int)$stmt->fetchColumn();
-            
-            $pdo->prepare("UPDATE items SET sort_order = sort_order + 1 WHERE role_type = ? AND sort_order > ? AND admin_id = $admin_quote")->execute([$role_type, $target_order]);
+            $pdo->prepare("UPDATE items SET sort_order = sort_order + 1 WHERE role_type = ? AND sort_order > ? AND $where_p")->execute([$role_type, $target_order]);
             $new_order = $target_order + 1;
         } else {
-            $stmt_order = $pdo->prepare("SELECT MAX(sort_order) FROM items WHERE role_type = ? AND admin_id = $admin_quote");
-            $stmt_order->execute([$role_type]);
-            $new_order = (int)$stmt_order->fetchColumn() + 1;
+            $stmt_max = $pdo->prepare("SELECT MAX(sort_order) FROM items WHERE role_type = ? AND $where_p");
+            $stmt_max->execute([$role_type]);
+            $new_order = (int)$stmt_max->fetchColumn() + 1;
         }
 
-        $stmt = $pdo->prepare("INSERT INTO items (category_name, item_name, photo_count, role_type, is_visible_mobile, sort_order, admin_id) VALUES (?, ?, ?, ?, 1, ?, ?)");
-        $stmt->execute([$category_name, $item_name, $photo_count, $role_type, $new_order, $user_id]);
+        $stmt = $pdo->prepare("INSERT INTO items (category_name, item_name, photo_count, role_type, is_visible_mobile, sort_order, admin_id, platform_id) VALUES (?, ?, ?, ?, 1, ?, ?, ?)");
+        $stmt->execute([$category_name, $item_name, $photo_count, $role_type, $new_order, $user_id, $pid ?: null]);
         $new_id = $pdo->lastInsertId();
+        
         $code = 'D' . str_pad($new_id, 4, '0', STR_PAD_LEFT);
         $pdo->prepare("UPDATE items SET item_code = ? WHERE item_id = ?")->execute([$code, $new_id]);
         
@@ -86,63 +86,59 @@ if ($mode == 'toggle') {
     $role_type = $_POST['role_type'] ?? '';
 
     try {
-        $stmt_old = $pdo->prepare("SELECT photo_count FROM items WHERE item_id = ? AND admin_id = ?");
-        $stmt_old->execute([$item_id, $user_id]);
+        $stmt_check = $pdo->prepare("SELECT platform_id, admin_id FROM items WHERE item_id = ?");
+        $stmt_check->execute([$item_id]);
+        $check = $stmt_check->fetch();
+        if (!$check || ($check['admin_id'] !== $user_id && (empty($check['platform_id']) || $check['platform_id'] != $pid))) {
+            redirect($role_param, $ref, $pid);
+        }
+
+        $stmt_old = $pdo->prepare("SELECT photo_count FROM items WHERE item_id = ?");
+        $stmt_old->execute([$item_id]);
         $old_count = (int)($stmt_old->fetchColumn() ?: 1);
 
         if ($photo_count < $old_count) {
-            $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ? AND photo_index > ?");
-            $stmt_check->execute([$item_id, $photo_count]);
-            if ((int)$stmt_check->fetchColumn() > 0) {
+            $stmt_check_log = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ? AND photo_index > ?");
+            $stmt_check_log->execute([$item_id, $photo_count]);
+            if ((int)$stmt_check_log->fetchColumn() > 0) {
                 $err = rawurlencode("이미 촬영된 사진이 존재하여 개수를 줄일 수 없습니다.");
-                if ($ref === 'platform') header("Location: projects_platform_items.php?id=$pid&role=$role_param&msg=$err");
-                else header("Location: item_form.php?id=$item_id&role=$role_type&msg=$err");
+                header("Location: " . ($ref === 'platform' ? "projects_platform_items.php?id=$pid&role=$role_param" : "item_form.php?id=$item_id&role=$role_type") . "&msg=$err");
                 exit;
             }
         }
 
-        $stmt = $pdo->prepare("UPDATE items SET category_name = ?, item_name = ?, photo_count = ?, role_type = ? WHERE item_id = ? AND admin_id = ?");
-        $stmt->execute([$category_name, $item_name, $photo_count, $role_type, $item_id, $user_id]);
+        $stmt = $pdo->prepare("UPDATE items SET category_name = ?, item_name = ?, photo_count = ?, role_type = ? WHERE item_id = ?");
+        $stmt->execute([$category_name, $item_name, $photo_count, $role_type, $item_id]);
         redirect($role_type, $ref, $pid);
     } catch (Exception $e) {
         redirect($role_type, $ref, $pid);
     }
 
-} else if ($mode == 'update_photo_count') {
-    $id = $_GET['id'] ?? '';
-    $count = (int)($_GET['count'] ?? 1);
-
-    try {
-        $stmt_old = $pdo->prepare("SELECT photo_count FROM items WHERE item_id = ? AND admin_id = ?");
-        $stmt_old->execute([$id, $user_id]);
-        $old_count = (int)($stmt_old->fetchColumn() ?: 1);
-
-        if ($count < $old_count) {
-            $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ? AND photo_index > ?");
-            $stmt_check->execute([$id, $count]);
-            if ((int)$stmt_check->fetchColumn() > 0) {
-                redirect($role_param, $ref, $pid);
-            }
-        }
-
-        $stmt = $pdo->prepare("UPDATE items SET photo_count = ? WHERE item_id = ? AND admin_id = ?");
-        $stmt->execute([$count, $id, $user_id]);
-        redirect($role_param, $ref, $pid);
-    } catch (Exception $e) {
-        redirect($role_param, $ref, $pid);
-    }
 } else if ($mode == 'delete') {
     $id = $_GET['id'] ?? '';
 
     try {
-        $check = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ?");
-        $check->execute([$id]);
-        if ($check->fetchColumn() > 0) {
-            redirect($role_param, $ref, $pid);
+        $stmt_check = $pdo->prepare("SELECT platform_id, admin_id FROM items WHERE item_id = ?");
+        $stmt_check->execute([$id]);
+        $check = $stmt_check->fetch();
+
+        if (!$check) redirect($role_param, $ref, $pid);
+        
+        // 현장 전용 페이지에서 마스터 항목 삭제 방지
+        if ($ref == 'platform' && empty($check['platform_id'])) {
+            echo "<script>alert('현장 설정 페이지에서는 현장 전용 항목만 삭제할 수 있습니다.'); history.back();</script>";
+            exit;
         }
 
-        $stmt = $pdo->prepare("DELETE FROM items WHERE item_id = ? AND admin_id = ?");
-        $stmt->execute([$id, $user_id]);
+        $pcheck = $pdo->prepare("SELECT COUNT(*) FROM photo_logs WHERE item_id = ?");
+        $pcheck->execute([$id]);
+        if ($pcheck->fetchColumn() > 0) {
+            echo "<script>alert('이미 촬영된 사진이 존재하여 삭제할 수 없습니다.'); history.back();</script>";
+            exit;
+        }
+
+        $stmt = $pdo->prepare("DELETE FROM items WHERE item_id = ?");
+        $stmt->execute([$id]);
         redirect($role_param, $ref, $pid);
     } catch (Exception $e) {
         redirect($role_param, $ref, $pid);
@@ -153,8 +149,8 @@ if ($mode == 'toggle') {
     $direction = ($mode == 'move_up') ? 'up' : 'down';
 
     try {
-        $admin_quote = $pdo->quote($user_id);
-        $stmt = $pdo->prepare("SELECT item_id, sort_order, role_type FROM items WHERE item_id = ? AND admin_id = $admin_quote");
+        $where_p = $pid ? "platform_id = " . (int)$pid : "platform_id IS NULL AND admin_id = " . $pdo->quote($user_id);
+        $stmt = $pdo->prepare("SELECT item_id, sort_order, role_type FROM items WHERE item_id = ? AND $where_p");
         $stmt->execute([$id]);
         $current = $stmt->fetch();
 
@@ -163,48 +159,20 @@ if ($mode == 'toggle') {
             $role_type = $current['role_type'];
 
             if ($direction == 'up') {
-                $stmt_target = $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND sort_order < ? AND admin_id = $admin_quote ORDER BY sort_order DESC LIMIT 1");
+                $stmt_target = $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND sort_order < ? AND $where_p ORDER BY sort_order DESC LIMIT 1");
             } else {
-                $stmt_target = $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND sort_order > ? AND admin_id = $admin_quote ORDER BY sort_order ASC LIMIT 1");
+                $stmt_target = $pdo->prepare("SELECT item_id, sort_order FROM items WHERE role_type = ? AND sort_order > ? AND $where_p ORDER BY sort_order ASC LIMIT 1");
             }
             $stmt_target->execute([$role_type, $curr_order]);
             $target = $stmt_target->fetch();
 
             if ($target) {
                 $pdo->beginTransaction();
-                $pdo->prepare("UPDATE items SET sort_order = ? WHERE item_id = ? AND admin_id = ?")->execute([$target['sort_order'], $id, $user_id]);
-                $pdo->prepare("UPDATE items SET sort_order = ? WHERE item_id = ? AND admin_id = ?")->execute([$curr_order, $target['item_id'], $user_id]);
+                $pdo->prepare("UPDATE items SET sort_order = ? WHERE item_id = ?")->execute([$target['sort_order'], $id]);
+                $pdo->prepare("UPDATE items SET sort_order = ? WHERE item_id = ?")->execute([$curr_order, $target['item_id']]);
                 $pdo->commit();
             }
         }
-        redirect($role_param, $ref, $pid);
-    } catch (Exception $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        redirect($role_param, $ref, $pid);
-    }
-} else if ($mode == 'import_format') {
-    $source_admin_id = $_GET['source_admin_id'] ?? '';
-    if (!$source_admin_id) die("Source Admin ID is required.");
-
-    try {
-        $pdo->beginTransaction();
-        $stmt_source = $pdo->prepare("SELECT * FROM items WHERE admin_id = ? ORDER BY role_type, sort_order ASC");
-        $stmt_source->execute([$source_admin_id]);
-        $source_items = $stmt_source->fetchAll();
-
-        foreach ($source_items as $si) {
-            $stmt_max = $pdo->prepare("SELECT MAX(sort_order) FROM items WHERE role_type = ? AND admin_id = ?");
-            $stmt_max->execute([$si['role_type'], $user_id]);
-            $new_order = (int)$stmt_max->fetchColumn() + 1;
-
-            $stmt_ins = $pdo->prepare("INSERT INTO items (category_name, item_name, photo_count, role_type, is_visible_mobile, sort_order, admin_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt_ins->execute([$si['category_name'], $si['item_name'], $si['photo_count'], $si['role_type'], $si['is_visible_mobile'], $new_order, $user_id]);
-
-            $new_id = $pdo->lastInsertId();
-            $new_code = 'D' . str_pad($new_id, 4, '0', STR_PAD_LEFT);
-            $pdo->prepare("UPDATE items SET item_code = ? WHERE item_id = ?")->execute([$new_code, $new_id]);
-        }
-        $pdo->commit();
         redirect($role_param, $ref, $pid);
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();

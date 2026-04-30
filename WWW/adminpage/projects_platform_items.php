@@ -31,10 +31,19 @@ if ($role == 'Admin' && $platform['admin_id'] !== $user_id) {
     die('접근 권한이 없는 현장입니다.');
 }
 
-// 해당 현장 담당 관리자의 마스터 아이템 목록 가져오기
+// 해당 현장의 항목 목록 가져오기 (마스터 항목 + 해당 승강장 전용 항목)
 $role_sql = ($role_filter === 'All') ? "" : " AND role_type = " . $pdo->quote($role_filter);
-$items_stmt = $pdo->prepare("SELECT * FROM items WHERE is_visible_mobile = 1 AND admin_id = ? $role_sql ORDER BY role_type, sort_order");
-$items_stmt->execute([$platform['admin_id']]);
+$items_stmt = $pdo->prepare("
+    SELECT * FROM items 
+    WHERE is_visible_mobile = 1 
+    AND (
+        (platform_id IS NULL AND admin_id = ?) 
+        OR (platform_id = ?)
+    )
+    $role_sql 
+    ORDER BY role_type, platform_id DESC, sort_order
+");
+$items_stmt->execute([$platform['admin_id'], $platform_id]);
 $all_items = $items_stmt->fetchAll();
 
 // 현재 제외된 항목들 가져오기
@@ -63,7 +72,7 @@ while($row = $stmt_pcheck->fetch()) {
         .admin-sidebar { background: #ffffff; border-right: 1px solid #e2e8f0; min-height: 100vh; padding: 2rem 1.5rem; }
         .admin-content { padding: 2.5rem; }
         .section-card { background: white; border-radius: 1rem; padding: 2rem; border: 1px solid #e2e8f0; }
-        .item-row { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
+        .item-row { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; position: relative; }
         .item-row:hover { background: #f8fafc; }
         .excluded { background: #fff1f2 !important; color: #94a3b8; text-decoration: line-through; position: relative; }
         .excluded .fw-semibold, .excluded .text-muted { color: #cbd5e1 !important; }
@@ -85,6 +94,7 @@ while($row = $stmt_pcheck->fetch()) {
         }
         .badge-worker { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
         .badge-safety { background-color: #fefce8; color: #a16207; border: 1px solid #fef08a; }
+        .badge-platform { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
         .filter-tabs .btn { border-radius: 0.75rem; padding: 0.5rem 1.25rem; font-weight: 600; font-size: 0.9rem; }
     </style>
 </head>
@@ -108,7 +118,7 @@ while($row = $stmt_pcheck->fetch()) {
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary rounded-pill shadow-sm fw-bold px-4" onclick="openAddModal()">
-                        <i class="bi bi-plus-circle me-1"></i> 새 항목 추가
+                        <i class="bi bi-plus-circle me-1"></i> 현재 승강장 전용 항목 추가
                     </button>
                     <div class="filter-tabs btn-group p-1 bg-white border rounded-pill shadow-sm">
                         <a href="?id=<?php echo $platform_id; ?>&role=All" class="btn <?php echo $role_filter == 'All' ? 'btn-primary' : 'btn-light'; ?> rounded-pill">전체</a>
@@ -129,13 +139,14 @@ while($row = $stmt_pcheck->fetch()) {
                                 <th>항목 명칭</th>
                                 <th style="width: 80px;" class="text-center">사진수</th>
                                 <th style="width: 150px;" class="text-center">순서변경</th>
-                                <th style="width: 100px;" class="text-center">관리</th>
+                                <th style="width: 120px;" class="text-center">관리</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($all_items as $item): 
                                 $is_excluded = in_array($item['item_id'], $excluded_ids);
                                 $has_photos = ($photo_counts[$item['item_id']] ?? 0) > 0;
+                                $is_platform_item = !empty($item['platform_id']);
                             ?>
                             <tr class="item-row <?php echo $is_excluded ? 'excluded' : ''; ?>" data-has-photos="<?php echo $has_photos ? '1' : '0'; ?>">
                                 <td class="text-center">
@@ -149,6 +160,9 @@ while($row = $stmt_pcheck->fetch()) {
                                     <span class="badge rounded-pill <?php echo $item['role_type'] == 'Safety' ? 'badge-safety' : 'badge-worker'; ?>">
                                         <?php echo $item['role_type'] == 'Safety' ? '안전' : '작업자'; ?>
                                     </span>
+                                    <?php if ($is_platform_item): ?>
+                                        <br><span class="badge rounded-pill badge-platform mt-1" style="font-size: 0.65rem;">현장전용</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-muted small"><?php echo h($item['category_name']); ?></td>
                                 <td class="fw-semibold"><?php echo h($item['item_name']); ?></td>
@@ -160,8 +174,12 @@ while($row = $stmt_pcheck->fetch()) {
                                     </div>
                                 </td>
                                 <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-link text-muted p-0 me-2" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($item)); ?>)"><i class="bi bi-pencil-square"></i></button>
-                                    <a href="item_proc.php?mode=delete&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('이 항목을 영구 삭제하시겠습니까? (마스터 목록에서 삭제)')"><i class="bi bi-trash"></i></a>
+                                    <?php if ($is_platform_item): ?>
+                                        <button type="button" class="btn btn-sm btn-link text-muted p-0 me-2" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($item)); ?>)"><i class="bi bi-pencil-square"></i></button>
+                                        <a href="item_proc.php?mode=delete&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('이 현장 전용 항목을 삭제하시겠습니까?')"><i class="bi bi-trash"></i></a>
+                                    <?php else: ?>
+                                        <span class="text-muted small">마스터 항목</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; ?>

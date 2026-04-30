@@ -15611,4 +15611,38 @@ Stack trace:
 [2026-04-29  8:48:59.13] Changed directory to E:\SubwayPlatformReWork\WWW 
 [2026-04-29  8:48:59.13] Executing: "C:/Users/taimu/scoop/apps/php/current/php.exe" -S 0.0.0.0:8080 -t . 
 [Wed Apr 29 08:48:59 2026] PHP 8.2.30 Development Server (http://0.0.0.0:8080) started
-^C
+^C[2026-04-30 18:15:58.09] Starting web server script... 
+[2026-04-30 18:15:58.09] Changed directory to E:\SubwayPlatformReWork\WWW 
+[2026-04-30 18:15:58.09] Executing: "C:/Users/taimu/scoop/apps/php/current/php.exe" -S 0.0.0.0:8080 -t . 
+[Thu Apr 30 18:15:58 2026] PHP 8.2.30 Development Server (http://0.0.0.0:8080) started
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:50069 Accepted
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:56990 Accepted
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:50069 [302]: GET /
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:50069 Closing
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:56990 [200]: GET /adminpage/index.php
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:56990 Closing
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:57853 Accepted
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:57853 [404]: GET /favicon.ico - No such file or directory
+[Thu Apr 30 18:16:07 2026] 127.0.0.1:57853 Closing
+[Thu Apr 30 18:16:23 2026] 127.0.0.1:53397 Accepted
+[Thu Apr 30 18:16:23 2026] 127.0.0.1:62265 Accepted
+[Thu Apr 30 18:16:23 2026] 127.0.0.1:53397 [200]: GET /adminpage/db_update.php
+[Thu Apr 30 18:16:23 2026] 127.0.0.1:53397 Closing
+[Thu Apr 30 18:16:24 2026] 127.0.0.1:51171 Accepted
+[Thu Apr 30 18:16:32 2026] 127.0.0.1:62265 [302]: POST /adminpage/index.php
+[Thu Apr 30 18:16:32 2026] 127.0.0.1:62265 Closing
+[Thu Apr 30 18:16:32 2026] 127.0.0.1:51171 [200]: GET /adminpage/dashboard.php
+[Thu Apr 30 18:16:32 2026] 127.0.0.1:51171 Closing
+[Thu Apr 30 18:16:38 2026] 127.0.0.1:50682 Accepted
+[Thu Apr 30 18:16:38 2026] 127.0.0.1:50682 [302]: GET /
+[Thu Apr 30 18:16:38 2026] 127.0.0.1:50682 Closing
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:61000 Accepted
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:61000 [302]: GET /adminpage/index.php
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:61000 Closing
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:56123 Accepted
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:56123 [200]: GET /adminpage/dashboard.php
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:56123 Closing
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:52907 Accepted
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:52907 [200]: GET /adminpage/db_update.php
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:52907 Closing
+[Thu Apr 30 18:16:39 2026] 127.0.0.1:64338 Accepted
