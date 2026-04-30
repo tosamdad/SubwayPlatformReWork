@@ -83,23 +83,23 @@ while($row = $stmt_pcheck->fetch()) {
             z-index: 1;
             text-decoration: none !important;
         }
-        /* 추가 항목 레이어 (푸른색 계열) */
-        .platform-added { position: relative; }
-        .platform-added::before {
+        /* 추가 항목 레이어 (푸른색 계열) - 특정 셀 내부에 표시되도록 수정 */
+        .name-cell-wrapper { position: relative; }
+        .platform-added-stamp::before {
             content: '추가 항목'; 
             position: absolute; 
             top: 50%; 
             left: 50%; 
             transform: translate(-50%, -50%) rotate(-5deg); 
-            font-size: 1.5rem; 
+            font-size: 1.1rem; 
             font-weight: 900; 
-            color: rgba(37, 99, 235, 0.12); 
-            border: 3px solid rgba(37, 99, 235, 0.12); 
-            padding: 0.25rem 1.5rem; 
-            border-radius: 0.5rem; 
+            color: rgba(37, 99, 235, 0.08); 
+            border: 2px solid rgba(37, 99, 235, 0.08); 
+            padding: 0.1rem 1rem; 
+            border-radius: 0.4rem; 
             pointer-events: none; 
-            z-index: 1;
-            text-decoration: none !important;
+            z-index: 0;
+            white-space: nowrap;
         }
         .badge-worker { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
         .badge-safety { background-color: #fefce8; color: #a16207; border: 1px solid #fef08a; }
@@ -163,7 +163,6 @@ while($row = $stmt_pcheck->fetch()) {
                                 // 클래스 조합
                                 $row_class = "item-row";
                                 if ($is_excluded) $row_class .= " excluded";
-                                if ($is_platform_item) $row_class .= " platform-added";
                             ?>
                             <tr class="<?php echo $row_class; ?>" 
                                 data-has-photos="<?php echo $has_photos ? '1' : '0'; ?>"
@@ -187,7 +186,9 @@ while($row = $stmt_pcheck->fetch()) {
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-muted small"><?php echo h($item['category_name']); ?></td>
-                                <td class="fw-semibold"><?php echo h($item['item_name']); ?></td>
+                                <td class="fw-semibold name-cell-wrapper <?php echo $is_platform_item ? 'platform-added-stamp' : ''; ?>">
+                                    <?php echo h($item['item_name']); ?>
+                                </td>
                                 <td class="text-center small"><?php echo $item['photo_count']; ?>장</td>
                                 <td class="text-center">
                                     <?php if ($is_platform_item): ?>
