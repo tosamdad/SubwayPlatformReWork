@@ -160,7 +160,65 @@ while($row = $stmt_pcheck->fetch()) {
 </div>
 
 <!-- Add/Edit Modal -->
-... (모달 부분 생략) ...
+<div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+            <form action="item_proc.php" method="POST">
+                <input type="hidden" name="mode" id="modalMode" value="add">
+                <input type="hidden" name="item_id" id="modalItemId" value="">
+                <input type="hidden" name="ref" value="platform">
+                <input type="hidden" name="pid" value="<?php echo $platform_id; ?>">
+                <input type="hidden" name="role_filter" value="<?php echo $role_filter; ?>">
+
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="modalTitle">새 항목 추가</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">권한 구분</label>
+                        <select name="role_type" id="modalRoleType" class="form-select rounded-3" onchange="loadCategories()">
+                            <option value="Worker">작업자 항목</option>
+                            <option value="Safety">안전관리 항목</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">카테고리 선택</label>
+                        <div class="input-group">
+                            <select id="category_select" class="form-select rounded-3" onchange="onCategorySelectChange()">
+                                <option value="">-- 카테고리 선택 --</option>
+                                <option value="__new__">+ 직접 입력 (새 카테고리)</option>
+                            </select>
+                            <input type="text" name="category_name" id="modalCategory" class="form-control rounded-3 d-none" placeholder="카테고리명 입력">
+                        </div>
+                    </div>
+
+                    <div id="positioning_container" class="mb-3 d-none">
+                        <label class="form-label fw-bold small text-primary">삽입 위치 선택 (해당 카테고리 내)</label>
+                        <div class="list-group mb-2 border rounded shadow-sm overflow-auto" style="max-height: 180px;" id="modal_item_list">
+                            <!-- 항목 리스트가 여기에 동적으로 로드됨 -->
+                        </div>
+                        <input type="hidden" name="target_item_id" id="modalTargetItemId" value="">
+                        <input type="hidden" name="insert_pos" id="modalInsertPos" value="last">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">항목 명칭 (타이틀)</label>
+                        <input type="text" name="item_name" id="modalItemName" class="form-control rounded-3" placeholder="예: 안전모 착용 확인" required>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">필요 사진 수</label>
+                        <input type="number" name="photo_count" id="modalPhotoCount" class="form-control rounded-3" value="1" min="1" max="10">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">저장하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
