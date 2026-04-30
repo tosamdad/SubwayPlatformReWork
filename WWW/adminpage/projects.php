@@ -110,7 +110,7 @@ try {
                                             <?php echo h($site['site_name']); ?>
                                         </span>
                                         <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-sm btn-outline-success" onclick="openPlatformModal(<?php echo $site['site_id']; ?>)">승강장 추가</button>
+                                            <button class="btn btn-sm btn-outline-success" onclick="openPlatformModal(<?php echo $site['site_id']; ?>)">하위항목추가</button>
                                             <button class="btn btn-sm btn-link text-muted" onclick="editSite(<?php echo $site['site_id']; ?>, '<?php echo h($site['site_name']); ?>')"><i class="bi bi-pencil-square"></i></button>
                                             <?php if ($role == 'SuperAdmin'): ?>
                                                 <button class="btn btn-sm btn-link text-danger" onclick="deleteNode('site', <?php echo $site['site_id']; ?>)"><i class="bi bi-x-circle"></i></button>
