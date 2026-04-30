@@ -17,9 +17,19 @@ if ($mode == 'get_categories') {
     $role_param = $_GET['role'] ?? '';
     $pid = $_GET['pid'] ?? '';
     try {
-        $where_p = $pid ? "platform_id = " . (int)$pid : "platform_id IS NULL AND admin_id = " . $pdo->quote($user_id);
-        $stmt = $pdo->prepare("SELECT DISTINCT category_name FROM items WHERE role_type = ? AND $where_p ORDER BY category_name");
-        $stmt->execute([$role_param]);
+        // pid가 있으면 해당 현장의 전용 카테고리 + 마스터 카테고리 합산
+        if ($pid) {
+            $stmt = $pdo->prepare("
+                SELECT DISTINCT category_name FROM items 
+                WHERE role_type = ? 
+                AND ( (platform_id IS NULL AND admin_id = ?) OR platform_id = ? )
+                ORDER BY category_name
+            ");
+            $stmt->execute([$role_param, $user_id, $pid]);
+        } else {
+            $stmt = $pdo->prepare("SELECT DISTINCT category_name FROM items WHERE role_type = ? AND platform_id IS NULL AND admin_id = ? ORDER BY category_name");
+            $stmt->execute([$role_param, $user_id]);
+        }
         $categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
         echo json_encode($categories);
     } catch (Exception $e) {
@@ -30,9 +40,18 @@ if ($mode == 'get_categories') {
     $category = $_GET['category'] ?? '';
     $pid = $_GET['pid'] ?? '';
     try {
-        $where_p = $pid ? "platform_id = " . (int)$pid : "platform_id IS NULL AND admin_id = " . $pdo->quote($user_id);
-        $stmt = $pdo->prepare("SELECT item_id, item_name, sort_order FROM items WHERE role_type = ? AND category_name = ? AND $where_p ORDER BY sort_order ASC");
-        $stmt->execute([$role_param, $category]);
+        if ($pid) {
+            $stmt = $pdo->prepare("
+                SELECT item_id, item_name, sort_order FROM items 
+                WHERE role_type = ? AND category_name = ? 
+                AND ( (platform_id IS NULL AND admin_id = ?) OR platform_id = ? )
+                ORDER BY platform_id DESC, sort_order ASC
+            ");
+            $stmt->execute([$role_param, $category, $user_id, $pid]);
+        } else {
+            $stmt = $pdo->prepare("SELECT item_id, item_name, sort_order FROM items WHERE role_type = ? AND category_name = ? AND platform_id IS NULL AND admin_id = ? ORDER BY sort_order ASC");
+            $stmt->execute([$role_param, $category, $user_id]);
+        }
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode($items);
     } catch (Exception $e) {
