@@ -137,6 +137,21 @@ while($row = $stmt_pcheck->fetch()) {
                 </div>
             </header>
 
+            <div class="alert alert-info border-0 shadow-sm rounded-4 d-flex align-items-center p-3 mb-4" style="background: linear-gradient(to right, #eff6ff, #dbeafe);">
+                <div class="flex-shrink-0 me-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="bi bi-info-circle-fill"></i>
+                    </div>
+                </div>
+                <div>
+                    <h6 class="alert-heading fw-bold mb-1 text-primary">안내 사항</h6>
+                    <p class="mb-0 text-dark small">
+                        이곳에서 설정하는 <strong>추가 및 제외 항목</strong>은 <strong>현재 승강장(<?php echo h($platform['platform_name']); ?>)</strong>에만 한정적으로 적용됩니다.<br>
+                        모든 승강장에 공통으로 적용하시려면 상단 메뉴의 <span class="badge bg-primary px-2">공정사진 포맷</span> 설정을 이용해 주세요.
+                    </p>
+                </div>
+            </div>
+
             <div class="section-card shadow-sm">
                 <div class="table-responsive">
                     <table class="table align-middle">
