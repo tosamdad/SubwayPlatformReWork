@@ -201,6 +201,9 @@ if ($platform_id) {
                     <a href="download_zip.php?platform_id=<?php echo $platform_id; ?>" class="btn btn-outline-primary rounded-pill shadow-sm fw-bold px-3">
                         <i class="bi bi-file-earmark-zip-fill me-1"></i> 사진 다운로드 (ZIP)
                     </a>
+                    <a href="download_excel.php?platform_id=<?php echo $platform_id; ?>" class="btn btn-outline-success rounded-pill shadow-sm fw-bold px-3">
+                        <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> 엑셀 다운로드 (CSV)
+                    </a>
                     <?php endif; ?>
                     <div class="filter-tabs btn-group p-1 bg-white border rounded-pill shadow-sm">
                         <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=All" 

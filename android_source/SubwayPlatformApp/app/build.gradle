@@ -5,15 +5,15 @@ plugins {
 android {
     // 1. 앱 내부 리소스나 R 클래스 참조를 위한 네임스페이스 수정
     namespace 'com.rawlab.subwaymanager'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         // 2. 앱의 고유 아이디 (플레이 스토어 등에서 식별하는 기준) 수정
         applicationId "com.rawlab.subwaymanager"
         minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        targetSdk 35
+        versionCode 3
+        versionName "1.0.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
