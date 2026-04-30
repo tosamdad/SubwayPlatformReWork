@@ -50,9 +50,9 @@ try {
 
             foreach ($plats as $p) {
                 // 권한별 공정율 계산
-                // 전체 항목 (마스터 - 제외 + 현장 전용)
+                // 전체 사진 개수 (마스터 - 제외 + 현장 전용)
                 $stmt_total = $pdo->prepare("
-                    SELECT COUNT(*) FROM items 
+                    SELECT SUM(photo_count) FROM items 
                     WHERE role_type = ? AND is_visible_mobile = 1
                     AND (
                         (platform_id IS NULL AND admin_id = ? AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
@@ -62,9 +62,9 @@ try {
                 $stmt_total->execute([$role_type, $parent_admin_id, $p['platform_id'], $p['platform_id']]);
                 $total_cnt = (int)$stmt_total->fetchColumn();
 
-                // 완료 항목 (해당 승강장에서 촬영된 사진이 있는 항목 수)
+                // 완료된 사진 개수
                 $stmt_done = $pdo->prepare("
-                    SELECT COUNT(DISTINCT pl.item_id) FROM photo_logs pl
+                    SELECT COUNT(*) FROM photo_logs pl
                     JOIN items i ON pl.item_id = i.item_id
                     WHERE pl.platform_id = ? AND i.role_type = ?
                     AND (

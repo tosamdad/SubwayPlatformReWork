@@ -108,16 +108,17 @@ if ($platform_id) {
         // 상세 공정 리스트 조회 (화면 표시용)
         $where_role_sql = ($role_filter === 'All') ? "" : " AND i.role_type = '$role_filter' ";
         $stmt_items = $pdo->prepare("
-            SELECT i.*
+            SELECT i.*,
+                   (SELECT COUNT(*) FROM platform_excluded_items WHERE platform_id = ? AND item_id = i.item_id) as is_excluded
             FROM items i
             WHERE (
-                (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
+                (i.platform_id IS NULL $admin_filter_sql)
                 OR i.platform_id = ?
             )
             $where_role_sql
             ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC, i.platform_id ASC
         ");
-        $stmt_items->execute([$platform_id, $platform_id]);
+        $stmt_items->execute([$platform_id, $platform_id, $platform_id]);
         $items = $stmt_items->fetchAll();
 
     // 모든 로그를 가져와서 [item_id][photo_index] 형태로 맵핑
@@ -156,11 +157,29 @@ if ($platform_id) {
         .fill-safety { background: #f59e0b; }
         .fill-worker { background: #10b981; }
 
-        .photo-card { cursor: pointer; transition: transform 0.2s; }
+        .photo-card { cursor: pointer; transition: transform 0.2s; position: relative; }
         .photo-card:hover { transform: translateY(-5px); }
         .photo-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 0.5rem; background: #f1f5f9; }
         .empty-photo { width: 100%; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 0.5rem; color: #94a3b8; }
         
+        /* 제외(숨김) 항목 스타일 */
+        .photo-card.excluded { opacity: 0.6; background-color: #f1f5f9 !important; pointer-events: none; }
+        .photo-card.excluded::after {
+            content: '숨김';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            font-size: 2rem;
+            font-weight: 900;
+            color: rgba(220, 38, 38, 0.25);
+            border: 4px solid rgba(220, 38, 38, 0.25);
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.8rem;
+            pointer-events: none;
+            z-index: 10;
+        }
+
         /* 다중 사진 그리드 (관리자용) */
         .admin-photo-grid {
             display: grid;
@@ -288,7 +307,13 @@ if ($platform_id) {
                         </span>
                     </h5>
                     <div class="text-muted small fw-medium">
-                        항목수: <span class="text-dark fw-bold"><?php echo count($items); ?>개</span>
+                        항목수: <span class="text-dark fw-bold">
+                            <?php 
+                            $active_count = 0;
+                            foreach($items as $it) if(!($it['is_excluded'] > 0)) $active_count++;
+                            echo $active_count;
+                            ?>개
+                        </span>
                     </div>
                 </div>
 
@@ -312,7 +337,7 @@ if ($platform_id) {
                         </div>
                     <?php endif; ?>
                     <div class="col-md-4 col-lg-3">
-                        <div class="photo-card h-100 border rounded-3 p-3 bg-white shadow-sm" id="card-<?php echo $item['item_id']; ?>">
+                        <div class="photo-card h-100 border rounded-3 p-3 bg-white shadow-sm <?php echo ($item['is_excluded'] > 0) ? 'excluded' : ''; ?>" id="card-<?php echo $item['item_id']; ?>">
                             <div class="mb-3">
                                 <?php if ($photo_count > 1): ?>
                                     <div class="admin-photo-grid">
