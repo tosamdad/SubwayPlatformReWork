@@ -164,38 +164,40 @@ if ($platform_id) {
         .empty-photo { width: 100%; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 0.5rem; color: #94a3b8; }
         
         /* 제외 항목 스타일 (레드) */
-        .photo-card.excluded { opacity: 0.6; background-color: #f1f5f9 !important; pointer-events: none; border-color: #fca5a5 !important; }
+        .photo-card.excluded { opacity: 0.7; background-color: #f1f5f9 !important; pointer-events: none; border-color: #ef4444 !important; }
         .photo-card.excluded::after {
             content: '제외 항목';
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-10deg);
-            font-size: 1.8rem;
-            font-weight: 900;
-            color: rgba(239, 68, 68, 0.25);
-            border: 4px solid rgba(239, 68, 68, 0.2);
-            padding: 0.4rem 1.2rem;
+            font-size: 2rem;
+            font-weight: 950;
+            color: rgba(239, 68, 68, 0.7);
+            border: 4px solid rgba(239, 68, 68, 0.6);
+            padding: 0.5rem 1.5rem;
             border-radius: 0.75rem;
+            background: rgba(255, 255, 255, 0.4);
             pointer-events: none;
             z-index: 10;
             white-space: nowrap;
         }
 
-        /* 모바일 숨김 스타일 (오렌지/퍼플) */
-        .photo-card.mobile-hidden { opacity: 0.6; background-color: #f1f5f9 !important; pointer-events: none; border-color: #ddd6fe !important; }
+        /* 모바일 숨김 스타일 (퍼플) */
+        .photo-card.mobile-hidden { opacity: 0.7; background-color: #f1f5f9 !important; pointer-events: none; border-color: #8b5cf6 !important; }
         .photo-card.mobile-hidden::after {
             content: '모바일 숨김';
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-10deg);
-            font-size: 1.8rem;
-            font-weight: 900;
-            color: rgba(139, 92, 246, 0.25);
-            border: 4px solid rgba(139, 92, 246, 0.2);
-            padding: 0.4rem 1.2rem;
+            font-size: 2rem;
+            font-weight: 950;
+            color: rgba(139, 92, 246, 0.7);
+            border: 4px solid rgba(139, 92, 246, 0.6);
+            padding: 0.5rem 1.5rem;
             border-radius: 0.75rem;
+            background: rgba(255, 255, 255, 0.4);
             pointer-events: none;
             z-index: 10;
             white-space: nowrap;
@@ -327,6 +329,9 @@ if ($platform_id) {
                             ?>
                         </span>
                     </h5>
+                    <div class="text-muted small fw-medium">
+                        항목수: <span class="text-dark fw-bold">
+                            <?php 
                             $active_count = 0;
                             foreach($items as $it) {
                                 if(!($it['is_excluded'] > 0) && $it['is_visible_mobile'] == 1) $active_count++;
