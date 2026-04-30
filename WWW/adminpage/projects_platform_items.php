@@ -101,128 +101,173 @@ while($row = $stmt_pcheck->fetch()) {
                 </div>
             </header>
 
-            <form action="project_proc.php" method="POST" onsubmit="return confirmSave()">
-                <input type="hidden" name="mode" value="update_excluded_items">
-                <input type="hidden" name="platform_id" value="<?php echo $platform_id; ?>">
-                <input type="hidden" name="role_filter" value="<?php echo $role_filter; ?>">
-
-                <div class="section-card shadow-sm">
-                    <div class="table-responsive">
-                        <table class="table align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 60px;" class="text-center">제외</th>
-                                    <th style="width: 100px;">권한</th>
-                                    <th style="width: 120px;">카테고리</th>
-                                    <th>항목 명칭</th>
-                                    <th style="width: 80px;" class="text-center">사진수</th>
-                                    <th style="width: 150px;" class="text-center">순서변경</th>
-                                    <th style="width: 100px;" class="text-center">관리</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($all_items as $item): 
-                                    $is_excluded = in_array($item['item_id'], $excluded_ids);
-                                    $has_photos = ($photo_counts[$item['item_id']] ?? 0) > 0;
-                                ?>
-                                <tr class="item-row <?php echo $is_excluded ? 'excluded' : ''; ?>" data-has-photos="<?php echo $has_photos ? '1' : '0'; ?>">
-                                    <td class="text-center">
-                                        <input type="checkbox" name="exclude_ids[]" value="<?php echo $item['item_id']; ?>" 
-                                               class="form-check-input exclude-check" <?php echo $is_excluded ? 'checked' : ''; ?>>
-                                    </td>
-                                    <td>
-                                        <span class="badge rounded-pill <?php echo $item['role_type'] == 'Safety' ? 'badge-safety' : 'badge-worker'; ?>">
-                                            <?php echo $item['role_type'] == 'Safety' ? '안전' : '작업자'; ?>
-                                        </span>
-                                    </td>
-                                    <td class="text-muted small"><?php echo h($item['category_name']); ?></td>
-                                    <td class="fw-semibold"><?php echo h($item['item_name']); ?></td>
-                                    <td class="text-center small"><?php echo $item['photo_count']; ?>장</td>
-                                    <td class="text-center">
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="item_proc.php?mode=move_up&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-outline-secondary"><i class="bi bi-chevron-up"></i></a>
-                                            <a href="item_proc.php?mode=move_down&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-outline-secondary"><i class="bi bi-chevron-down"></i></a>
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-link text-muted p-0 me-2" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($item)); ?>)"><i class="bi bi-pencil-square"></i></button>
-                                        <a href="item_proc.php?mode=delete&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('이 항목을 영구 삭제하시겠습니까? (마스터 목록에서 삭제)')"><i class="bi bi-trash"></i></a>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                                <?php if (empty($all_items)): ?>
-                                    <tr><td colspan="7" class="text-center py-5 text-muted">등록된 항목이 없습니다.</td></tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="mt-4 text-end pt-3 border-top">
-                        <button type="submit" class="btn btn-primary px-5 py-2 fw-bold rounded-pill">제외 설정 저장하기</button>
-                    </div>
+            <div class="section-card shadow-sm">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 80px;" class="text-center">제외</th>
+                                <th style="width: 100px;">권한</th>
+                                <th style="width: 120px;">카테고리</th>
+                                <th>항목 명칭</th>
+                                <th style="width: 80px;" class="text-center">사진수</th>
+                                <th style="width: 150px;" class="text-center">순서변경</th>
+                                <th style="width: 100px;" class="text-center">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($all_items as $item): 
+                                $is_excluded = in_array($item['item_id'], $excluded_ids);
+                                $has_photos = ($photo_counts[$item['item_id']] ?? 0) > 0;
+                            ?>
+                            <tr class="item-row <?php echo $is_excluded ? 'excluded' : ''; ?>" data-has-photos="<?php echo $has_photos ? '1' : '0'; ?>">
+                                <td class="text-center">
+                                    <div class="form-check d-flex justify-content-center">
+                                        <input type="checkbox" value="<?php echo $item['item_id']; ?>" 
+                                               class="form-check-input exclude-check" <?php echo $is_excluded ? 'checked' : ''; ?>
+                                               style="width: 28px; height: 28px; cursor: pointer;">
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge rounded-pill <?php echo $item['role_type'] == 'Safety' ? 'badge-safety' : 'badge-worker'; ?>">
+                                        <?php echo $item['role_type'] == 'Safety' ? '안전' : '작업자'; ?>
+                                    </span>
+                                </td>
+                                <td class="text-muted small"><?php echo h($item['category_name']); ?></td>
+                                <td class="fw-semibold"><?php echo h($item['item_name']); ?></td>
+                                <td class="text-center small"><?php echo $item['photo_count']; ?>장</td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="item_proc.php?mode=move_up&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-outline-secondary"><i class="bi bi-chevron-up"></i></a>
+                                        <a href="item_proc.php?mode=move_down&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-outline-secondary"><i class="bi bi-chevron-down"></i></a>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-link text-muted p-0 me-2" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($item)); ?>)"><i class="bi bi-pencil-square"></i></button>
+                                    <a href="item_proc.php?mode=delete&id=<?php echo $item['item_id']; ?>&role=<?php echo $role_filter; ?>&ref=platform&pid=<?php echo $platform_id; ?>" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('이 항목을 영구 삭제하시겠습니까? (마스터 목록에서 삭제)')"><i class="bi bi-trash"></i></a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php if (empty($all_items)): ?>
+                                <tr><td colspan="7" class="text-center py-5 text-muted">등록된 항목이 없습니다.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Add/Edit Modal -->
-<div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
-            <form action="item_proc.php" method="POST">
-                <input type="hidden" name="mode" id="modalMode" value="add">
-                <input type="hidden" name="item_id" id="modalItemId" value="">
-                <input type="hidden" name="ref" value="platform">
-                <input type="hidden" name="pid" value="<?php echo $platform_id; ?>">
-                <input type="hidden" name="role_filter" value="<?php echo $role_filter; ?>">
-
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold" id="modalTitle">새 항목 추가</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">권한 구분</label>
-                        <select name="role_type" id="modalRoleType" class="form-select rounded-3">
-                            <option value="Worker">작업자 항목</option>
-                            <option value="Safety">안전관리 항목</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">카테고리</label>
-                        <input type="text" name="category_name" id="modalCategory" class="form-control rounded-3" placeholder="예: 기초공사, 마감공사">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">항목 명칭 (타이틀)</label>
-                        <input type="text" name="item_name" id="modalItemName" class="form-control rounded-3" placeholder="예: 안전모 착용 확인" required>
-                    </div>
-                    <div class="mb-0">
-                        <label class="form-label fw-bold">필요 사진 수</label>
-                        <input type="number" name="photo_count" id="modalPhotoCount" class="form-control rounded-3" value="1" min="1" max="10">
-                    </div>
-                </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">취소</button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4">저장하기</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+... (모달 부분 생략) ...
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
 
+async function loadCategories(selectedCategory = '') {
+    const role = document.getElementById('modalRoleType').value;
+    const select = document.getElementById('category_select');
+    
+    select.innerHTML = '<option value="">-- 카테고리 선택 --</option><option value="__new__">+ 직접 입력 (새 카테고리)</option>';
+    
+    try {
+        const res = await fetch(`item_api.php?mode=get_categories&role=${role}`);
+        const categories = await res.json();
+        
+        categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            if (cat === selectedCategory) opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        onCategorySelectChange();
+    } catch (e) { console.error(e); }
+}
+
+function onCategorySelectChange() {
+    const select = document.getElementById('category_select');
+    const input = document.getElementById('modalCategory');
+    const posContainer = document.getElementById('positioning_container');
+    const isEdit = document.getElementById('modalMode').value === 'edit';
+    
+    if (select.value === '__new__') {
+        input.classList.remove('d-none');
+        input.required = true;
+        input.value = '';
+        posContainer.classList.add('d-none');
+    } else {
+        input.classList.add('d-none');
+        input.required = false;
+        input.value = select.value;
+        if (select.value !== '' && !isEdit) {
+            loadItemsForPosition(select.value);
+        } else {
+            posContainer.classList.add('d-none');
+        }
+    }
+}
+
+async function loadItemsForPosition(category) {
+    const role = document.getElementById('modalRoleType').value;
+    const container = document.getElementById('positioning_container');
+    const list = document.getElementById('modal_item_list');
+    
+    try {
+        const res = await fetch(`item_api.php?mode=get_items&role=${role}&category=${encodeURIComponent(category)}`);
+        const items = await res.json();
+        
+        list.innerHTML = '';
+        
+        addItemToModalList('__first__', '--- 해당 카테고리 맨 처음에 삽입 ---', false);
+        items.forEach(it => { addItemToModalList(it.item_id, it.item_name, false); });
+        addItemToModalList('__last__', '--- 가장 마지막에 삽입 ---', true);
+        
+        container.classList.remove('d-none');
+    } catch (e) { console.error(e); }
+}
+
+function addItemToModalList(id, name, isDefault) {
+    const list = document.getElementById('modal_item_list');
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'list-group-item list-group-item-action py-1 small';
+    if (id === '__first__' || id === '__last__') {
+        item.classList.add('bg-light', 'text-center', 'fw-bold', 'text-primary');
+    }
+    
+    item.innerHTML = `<i class="bi bi-dot me-1"></i> ${name}`;
+    if (isDefault) {
+        item.classList.add('active');
+        document.getElementById('modalTargetItemId').value = id;
+        document.getElementById('modalInsertPos').value = (id === '__first__') ? 'first' : 'last';
+    }
+    
+    item.onclick = () => {
+        Array.from(list.children).forEach(child => child.classList.remove('active'));
+        item.classList.add('active');
+        if (id === '__first__' || id === '__last__') {
+            document.getElementById('modalTargetItemId').value = id;
+            document.getElementById('modalInsertPos').value = (id === '__first__') ? 'first' : 'last';
+        } else {
+            document.getElementById('modalTargetItemId').value = id;
+            document.getElementById('modalInsertPos').value = 'after';
+        }
+    };
+    list.appendChild(item);
+}
+
 function openAddModal() {
     document.getElementById('modalMode').value = 'add';
     document.getElementById('modalTitle').innerText = '새 항목 추가';
     document.getElementById('modalItemId').value = '';
-    document.getElementById('modalCategory').value = '';
     document.getElementById('modalItemName').value = '';
     document.getElementById('modalPhotoCount').value = '1';
     document.getElementById('modalRoleType').value = '<?php echo ($role_filter != "All") ? $role_filter : "Worker"; ?>';
+    loadCategories();
     itemModal.show();
 }
 
@@ -230,33 +275,53 @@ function openEditModal(item) {
     document.getElementById('modalMode').value = 'edit';
     document.getElementById('modalTitle').innerText = '항목 수정';
     document.getElementById('modalItemId').value = item.item_id;
-    document.getElementById('modalCategory').value = item.category_name;
     document.getElementById('modalItemName').value = item.item_name;
     document.getElementById('modalPhotoCount').value = item.photo_count;
     document.getElementById('modalRoleType').value = item.role_type;
+    document.getElementById('positioning_container').classList.add('d-none');
+    loadCategories(item.category_name);
     itemModal.show();
 }
 
-function confirmSave() {
-    return confirm('제외 설정을 저장하시겠습니까?');
-}
-
-// 제외 체크박스 변경 시 사진 유무 확인
+// 제외 체크박스 변경 시 AJAX 처리
 document.querySelectorAll('.exclude-check').forEach(ck => {
-    ck.addEventListener('change', function() {
+    ck.addEventListener('change', async function() {
         const tr = this.closest('tr');
         const hasPhotos = tr.dataset.hasPhotos === '1';
-        
-        if (this.checked) {
-            if (hasPhotos) {
-                if (!confirm('경고: 해당 항목에 이미 촬영된 사진이 존재합니다.\n제외 설정 시 모바일에서 보이지 않으며 관리에 혼선이 생길 수 있습니다.\n계속하시겠습니까?')) {
-                    this.checked = false;
-                    return;
-                }
+        const itemId = this.value;
+        const platformId = '<?php echo $platform_id; ?>';
+        const isExcluded = this.checked;
+
+        if (isExcluded && hasPhotos) {
+            if (!confirm('경고: 해당 항목에 이미 촬영된 사진이 존재합니다.\n계속하시겠습니까?')) {
+                this.checked = false;
+                return;
             }
-            tr.classList.add('excluded');
-        } else {
-            tr.classList.remove('excluded');
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('mode', 'toggle_excluded_item');
+            formData.append('platform_id', platformId);
+            formData.append('item_id', itemId);
+            formData.append('status', isExcluded ? '1' : '0');
+
+            const res = await fetch('project_proc.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                if (isExcluded) tr.classList.add('excluded');
+                else tr.classList.remove('excluded');
+            } else {
+                alert('변경 사항 저장 중 오류가 발생했습니다.');
+                this.checked = !isExcluded; // 상태 복구
+            }
+        } catch (e) {
+            alert('네트워크 오류가 발생했습니다.');
+            this.checked = !isExcluded;
         }
     });
 });

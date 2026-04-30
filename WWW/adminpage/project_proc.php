@@ -171,5 +171,24 @@ if ($mode == 'add_const') {
         if ($pdo->inTransaction()) $pdo->rollBack();
         echo "<script>alert('저장 오류: " . addslashes($e->getMessage()) . "'); history.back();</script>";
     }
+} else if ($mode == 'toggle_excluded_item') {
+    header('Content-Type: application/json');
+    $platform_id = $_POST['platform_id'] ?? '';
+    $item_id = $_POST['item_id'] ?? '';
+    $status = $_POST['status'] ?? '0'; // 1: excluded, 0: included
+
+    try {
+        if ($status == '1') {
+            $stmt = $pdo->prepare("INSERT IGNORE INTO platform_excluded_items (platform_id, item_id) VALUES (?, ?)");
+            $stmt->execute([$platform_id, $item_id]);
+        } else {
+            $stmt = $pdo->prepare("DELETE FROM platform_excluded_items WHERE platform_id = ? AND item_id = ?");
+            $stmt->execute([$platform_id, $item_id]);
+        }
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
 }
 ?>
