@@ -118,7 +118,7 @@ if ($platform_id) {
             $where_role_sql
             ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC, i.platform_id ASC
         ");
-        $stmt_items->execute([$platform_id, $platform_id, $platform_id]);
+        $stmt_items->execute([$platform_id, $platform_id]);
         $items = $stmt_items->fetchAll();
 
     // 모든 로그를 가져와서 [item_id][photo_index] 형태로 맵핑
