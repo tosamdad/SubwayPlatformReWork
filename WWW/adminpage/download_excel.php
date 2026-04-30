@@ -67,8 +67,9 @@ foreach ($logs as $l) {
     $original_name = basename($l['photo_url']);
     $ext = pathinfo($original_name, PATHINFO_EXTENSION);
     
-    // 변경될 파일명: 공사명_역명_승강장_키값_순번.확장자
-    $new_name = $prefix . '_' . $l['item_code'] . '_' . $l['photo_index'] . '.' . $ext;
+    // 변경될 파일명: 공사명_역명_승강장_키값_항목명_순번.확장자
+    $clean_item_name = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $l['item_name']);
+    $new_name = $prefix . '_' . $l['item_code'] . '_' . $clean_item_name . '_' . $l['photo_index'] . '.' . $ext;
     $new_name = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $new_name);
 
     // 윈도우용 rename 명령어 생성
