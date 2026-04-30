@@ -163,21 +163,22 @@ if ($platform_id) {
         .empty-photo { width: 100%; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 0.5rem; color: #94a3b8; }
         
         /* 제외(숨김) 항목 스타일 */
-        .photo-card.excluded { opacity: 0.6; background-color: #f1f5f9 !important; pointer-events: none; }
+        .photo-card.excluded { opacity: 0.6; background-color: #f1f5f9 !important; pointer-events: none; border-color: #fca5a5 !important; }
         .photo-card.excluded::after {
-            content: '숨김';
+            content: '제외 항목';
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(-15deg);
-            font-size: 2rem;
+            transform: translate(-50%, -50%) rotate(-10deg);
+            font-size: 1.8rem;
             font-weight: 900;
-            color: rgba(220, 38, 38, 0.25);
-            border: 4px solid rgba(220, 38, 38, 0.25);
-            padding: 0.5rem 1.5rem;
-            border-radius: 0.8rem;
+            color: rgba(239, 68, 68, 0.25);
+            border: 4px solid rgba(239, 68, 68, 0.2);
+            padding: 0.4rem 1.2rem;
+            border-radius: 0.75rem;
             pointer-events: none;
             z-index: 10;
+            white-space: nowrap;
         }
 
         /* 다중 사진 그리드 (관리자용) */
