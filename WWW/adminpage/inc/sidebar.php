@@ -74,10 +74,26 @@ $user_id = $_SESSION['user_id'] ?? '';
                     echo '<i class="bi bi-geo-alt me-1"></i>'.h($s_site['site_name']);
                     echo '</div>';
 
+                    $admin_filter_sql_sidebar = ($role === 'Admin') ? " AND admin_id = " . $pdo->quote($user_id) : "";
                     $sidebar_plats = $pdo->prepare("
                         SELECT p.*, 
-                            (SELECT SUM(photo_count) FROM items WHERE item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = p.platform_id)) as total_count,
-                            (SELECT COUNT(*) FROM photo_logs WHERE platform_id = p.platform_id) as uploaded_count
+                            (SELECT SUM(photo_count) 
+                             FROM items 
+                             WHERE is_visible_mobile = 1 
+                             AND (
+                                 (platform_id IS NULL $admin_filter_sql_sidebar AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = p.platform_id))
+                                 OR platform_id = p.platform_id
+                             )
+                            ) as total_count,
+                            (SELECT COUNT(*) 
+                             FROM photo_logs pl
+                             JOIN items i ON pl.item_id = i.item_id
+                             WHERE pl.platform_id = p.platform_id AND i.is_visible_mobile = 1
+                             AND ( 
+                                 (i.platform_id IS NULL $admin_filter_sql_sidebar AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = p.platform_id)) 
+                                 OR i.platform_id = p.platform_id 
+                             )
+                            ) as uploaded_count
                         FROM platforms p 
                         WHERE p.site_id = ? 
                         ORDER BY p.platform_id ASC

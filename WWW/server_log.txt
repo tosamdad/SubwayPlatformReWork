@@ -15646,3 +15646,6 @@ Stack trace:
 [Thu Apr 30 18:16:39 2026] 127.0.0.1:52907 [200]: GET /adminpage/db_update.php
 [Thu Apr 30 18:16:39 2026] 127.0.0.1:52907 Closing
 [Thu Apr 30 18:16:39 2026] 127.0.0.1:64338 Accepted
+[Thu Apr 30 18:18:09 2026] 127.0.0.1:64338 Closed without sending a request; it was probably just an unused speculative preconnection
+[Thu Apr 30 18:18:09 2026] 127.0.0.1:64338 Closing
+[2026-04-30 20:14:37.67] Error starting PHP server. Exit code: 1073807364. 
