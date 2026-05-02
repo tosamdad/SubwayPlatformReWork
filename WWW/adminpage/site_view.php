@@ -424,7 +424,12 @@ if ($platform_id) {
                                 <div class="fw-bold text-dark text-truncate mb-1" title="<?php echo h($item['item_name']); ?>">
                                     <?php echo h($item['item_name']); ?>
                                 </div>
-                                <div class="text-muted small mb-2" style="font-size: 0.7rem;"><?php echo h($item['category_name']); ?></div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="text-muted small" style="font-size: 0.7rem;"><?php echo h($item['category_name']); ?></div>
+                                    <span class="badge <?php echo is_null($item['platform_id']) ? 'bg-secondary bg-opacity-10 text-secondary' : 'bg-primary bg-opacity-10 text-primary'; ?> fw-bold border <?php echo is_null($item['platform_id']) ? 'border-secondary-subtle' : 'border-primary-subtle'; ?>" style="font-size: 0.65rem;">
+                                        <?php echo is_null($item['platform_id']) ? '전체적용' : h($p_data['info']['platform_name']) . '만 적용'; ?>
+                                    </span>
+                                </div>
                                 
                                 <?php 
                                 // 가장 최근 사진 시간 표시
