@@ -19,22 +19,6 @@ if (!$site_id) {
     exit;
 }
 
-// 테이블 자동 생성 (SubwayPlatformReWork 로컬 DB 대응)
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS item_memos (
-        memo_id INT AUTO_INCREMENT PRIMARY KEY,
-        const_id INT NOT NULL,
-        site_id INT NOT NULL,
-        platform_id INT NOT NULL,
-        item_id INT NOT NULL,
-        memo_text TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        user_id VARCHAR(50),
-        UNIQUE KEY idx_plat_item (platform_id, item_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
-} catch (Exception $e) {}
-
 // 역사 및 공사 정보 조회 (권한 체크 포함)
 $stmt = $pdo->prepare("
     SELECT s.*, c.const_name, c.const_code, c.admin_id 
