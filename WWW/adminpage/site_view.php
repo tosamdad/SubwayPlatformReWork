@@ -427,14 +427,12 @@ if ($platform_id) {
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div class="text-muted small" style="font-size: 0.7rem;"><?php echo h($item['category_name']); ?></div>
                                     <span class="badge <?php 
-                                        if ($is_excluded) echo 'bg-danger bg-opacity-10 text-danger border-danger-subtle';
-                                        else if (is_null($item['platform_id'])) echo 'bg-secondary bg-opacity-10 text-secondary border-secondary-subtle';
+                                        if ($is_excluded || !is_null($item['platform_id'])) echo 'bg-danger bg-opacity-10 text-danger border-danger-subtle';
                                         else echo 'bg-primary bg-opacity-10 text-primary border-primary-subtle';
                                     ?> fw-bold border" style="font-size: 0.65rem;">
                                         <?php 
-                                        if ($is_excluded) echo '제외됨';
-                                        else if (is_null($item['platform_id'])) echo '전체적용';
-                                        else echo h($p_data['info']['platform_name']) . '만 적용'; 
+                                        if ($is_excluded || !is_null($item['platform_id'])) echo h($p_data['info']['platform_name']) . '만 적용';
+                                        else echo '전체적용';
                                         ?>
                                     </span>
                                 </div>
