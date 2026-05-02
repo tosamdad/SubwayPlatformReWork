@@ -129,7 +129,15 @@ if ($platform_id) {
     while ($row = $stmt_logs->fetch()) {
         $item_logs[$row['item_id']][$row['photo_index']] = $row;
     }
-} catch (Exception $e) { $items = []; $item_logs = []; }
+    
+    // 메모 데이터를 가져와서 맵핑
+    $item_memos = [];
+    $stmt_memos = $pdo->prepare("SELECT item_id, memo_text FROM item_memos WHERE platform_id = ?");
+    $stmt_memos->execute([$platform_id]);
+    while ($row = $stmt_memos->fetch()) {
+        $item_memos[$row['item_id']] = $row['memo_text'];
+    }
+} catch (Exception $e) { $items = []; $item_logs = []; $item_memos = []; }
 }
 ?>
 <!DOCTYPE html>
@@ -452,6 +460,13 @@ if ($platform_id) {
                                     <div class="text-muted border-top pt-2 mt-2 d-flex justify-content-between align-items-center" style="font-size: 0.7rem;">
                                         <span><i class="bi bi-person-fill me-1"></i> <?php echo h($latest_user ?? '-'); ?></span>
                                         <span><i class="bi bi-clock me-1"></i> <?php echo date('m-d H:i', strtotime($latest_time)); ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if (!empty($item_memos[$item['item_id']])): ?>
+                                    <div class="mt-2 p-2 rounded" style="background-color: #fff1f2; border: 1px solid #fecdd3; font-size: 0.75rem;">
+                                        <div class="fw-bold text-danger mb-1"><i class="bi bi-chat-text-fill me-1"></i>특이사항 메모</div>
+                                        <div class="text-dark" style="word-break: keep-all; line-height: 1.4;"><?php echo nl2br(h($item_memos[$item['item_id']])); ?></div>
                                     </div>
                                 <?php endif; ?>
                             </div>
