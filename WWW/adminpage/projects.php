@@ -132,7 +132,7 @@ try {
                                                 </span>
                                                 <div class="d-flex gap-2 align-items-center">
                                                     <a href="projects_platform_items.php?id=<?php echo $plat['platform_id']; ?>" class="btn btn-xs btn-outline-info py-0 px-2 small" style="font-size: 0.75rem;">
-                                                        <i class="bi bi-list-check"></i> 항목 설정
+                                                        <i class="bi bi-list-check"></i> 공정별항목설정
                                                     </a>
                                                     <button class="btn btn-link text-muted p-0" onclick="editPlatform(<?php echo $plat['platform_id']; ?>, '<?php echo h($plat['platform_name']); ?>')"><i class="bi bi-pencil-square"></i></button>
                                                     <button class="btn btn-link text-danger p-0" onclick="deleteNode('platform', <?php echo $plat['platform_id']; ?>)"><i class="bi bi-dash-circle"></i></button>
