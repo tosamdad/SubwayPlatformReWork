@@ -17,6 +17,20 @@ try {
     $stmt = $pdo->prepare("SELECT p.platform_name, s.site_name, s.site_id, s.const_id FROM platforms p JOIN sites s ON p.site_id = s.site_id WHERE p.platform_id = ?");
     $stmt->execute([$platform_id]);
     $platform = $stmt->fetch();
+    
+    // 테이블 자동 생성 (SubwayPlatformReWork 로컬 DB 대응)
+    $pdo->exec("CREATE TABLE IF NOT EXISTS item_memos (
+        memo_id INT AUTO_INCREMENT PRIMARY KEY,
+        const_id INT NOT NULL,
+        site_id INT NOT NULL,
+        platform_id INT NOT NULL,
+        item_id INT NOT NULL,
+        memo_text TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        user_id VARCHAR(50),
+        UNIQUE KEY idx_plat_item (platform_id, item_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
 } catch (Exception $e) { $platform = null; }
 
 $role_filter = "role_type = 'Worker'";
