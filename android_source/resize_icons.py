@@ -12,8 +12,8 @@ except ImportError:
 
 # 경로 설정
 base_dir = os.path.dirname(os.path.abspath(__file__))
-src_icon = os.path.join(base_dir, "앱사용예정이미지", "밝은 버전", "앱아이콘_밝은버전_1024x1024.png")
-src_splash = os.path.join(base_dir, "앱사용예정이미지", "밝은 버전", "스플래시화면_밝은버전_1080x1920.png")
+src_icon = os.path.join(base_dir, "앱사용예정이미지", "최종본_아이콘_파일", "icon_512.png")
+src_splash = os.path.join(base_dir, "앱사용예정이미지", "최종본_아이콘_파일", "Splash.png")
 
 res_dir = os.path.join(base_dir, "SubwayPlatformApp", "app", "src", "main", "res")
 
