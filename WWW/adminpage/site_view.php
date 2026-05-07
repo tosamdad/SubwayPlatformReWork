@@ -304,14 +304,6 @@ if ($platform_id) {
                         <i class="bi bi-gear-fill me-1"></i> 항목 설정
                     </a>
                     <?php endif; ?>
-                    <div class="filter-tabs btn-group p-1 bg-white border rounded-pill shadow-sm">
-                        <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=All" 
-                           class="btn <?php echo $role_filter == 'All' ? 'btn-primary' : 'btn-light'; ?> rounded-pill">전체</a>
-                        <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Safety" 
-                           class="btn <?php echo $role_filter == 'Safety' ? 'btn-warning text-white' : 'btn-light'; ?> rounded-pill">안전</a>
-                        <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Worker" 
-                           class="btn <?php echo $role_filter == 'Worker' ? 'btn-success' : 'btn-light'; ?> rounded-pill">작업자</a>
-                    </div>
                 </div>
             </header>
 
@@ -368,15 +360,17 @@ if ($platform_id) {
                 <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
                     <h5 class="fw-bold mb-0">
                         <i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>
-                        상세 내역 - 
-                        <span class="text-primary">
-                            <?php 
-                                if($role_filter == 'All') echo '전체';
-                                else if($role_filter == 'Safety') echo '안전관리';
-                                else echo '작업자';
-                            ?>
-                        </span>
+                        상세 내역
                     </h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="filter-tabs btn-group p-1 bg-white border rounded-pill shadow-sm" style="font-size: 0.85rem;">
+                            <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=All" 
+                               class="btn <?php echo $role_filter == 'All' ? 'btn-primary' : 'btn-light'; ?> rounded-pill px-3">전체</a>
+                            <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Safety" 
+                               class="btn <?php echo $role_filter == 'Safety' ? 'btn-warning text-white' : 'btn-light'; ?> rounded-pill px-3">안전 (<?php echo $safety_day_count; ?>일)</a>
+                            <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Worker" 
+                               class="btn <?php echo $role_filter == 'Worker' ? 'btn-success' : 'btn-light'; ?> rounded-pill px-3">작업자</a>
+                        </div>
                     <div class="text-muted small fw-medium">
                         항목수: <span class="text-dark fw-bold">
                             <?php 
