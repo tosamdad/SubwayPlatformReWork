@@ -46,8 +46,11 @@ $stmt_logs->execute([$platform_id]);
 $logs = $stmt_logs->fetchAll();
 
 // 3. CSV 생성
-$filename = "List_" . $p_info['const_name'] . "_" . $p_info['site_name'] . "_" . $p_info['platform_name'] . ".csv";
-$filename = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $filename);
+$raw_filename = "List_" . $p_info['const_name'] . "_" . $p_info['site_name'] . "_" . $p_info['platform_name'];
+$clean_filename = preg_replace('/[\(\)\[\]\{\}]/', '', $raw_filename); // 괄호 제거
+$clean_filename = preg_replace('/[^a-zA-Z0-9가-힣_\-]/u', '_', $clean_filename); // 특수문자 -> _
+$clean_filename = preg_replace('/_+/', '_', $clean_filename); // 연속 언더바 제거
+$filename = trim($clean_filename, '_') . ".csv";
 
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -61,17 +64,23 @@ $output = fopen('php://output', 'w');
 fputcsv($output, ['공사명', '역명', '승강장명', '항목키', '항목명', '순번', '현재파일명', '변경될파일명', '변경명령어(CMD)']);
 
 $prefix = $p_info['const_name'] . '_' . $p_info['site_name'] . '_' . $p_info['platform_name'];
-$prefix = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $prefix);
+$prefix = preg_replace('/[\(\)\[\]\{\}]/', '', $prefix); 
+$prefix = preg_replace('/[^a-zA-Z0-9가-힣_\-]/u', '_', $prefix);
+$prefix = preg_replace('/_+/', '_', $prefix);
+$prefix = trim($prefix, '_');
 
 foreach ($logs as $l) {
     $original_name = basename($l['photo_url']);
     $ext = pathinfo($original_name, PATHINFO_EXTENSION);
     
     // 변경될 파일명: 공사명_역명_승강장_(날짜)_항목명_순번.확장자 (아이템 코드 삭제)
-    $clean_item_name = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $l['item_name']);
+    $clean_item_name = preg_replace('/[\(\)\[\]\{\}]/', '', $l['item_name']); 
+    $clean_item_name = preg_replace('/[^a-zA-Z0-9가-힣_\-]/u', '_', $clean_item_name);
+    $clean_item_name = preg_replace('/_+/', '_', $clean_item_name);
+    $clean_item_name = trim($clean_item_name, '_');
+
     $date_part = ($l['role_type'] === 'Safety') ? date('Y-m-d', strtotime($l['timestamp'])) . '_' : '';
     $new_name = $prefix . '_' . $date_part . $clean_item_name . '_' . $l['photo_index'] . '.' . $ext;
-    $new_name = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $new_name);
 
     // 윈도우용 rename 명령어 생성
     $rename_cmd = "ren \"$original_name\" \"$new_name\"";

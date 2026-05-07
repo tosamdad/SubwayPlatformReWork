@@ -414,7 +414,7 @@ if ($platform_id) {
                 <div class="row g-4">
                     <?php 
                     // 항목 카드 렌더링 도우미 함수
-                    function renderAdminItemCard($item, $logs, $p_data, $item_memos) {
+                    function renderAdminItemCard($item, $logs, $p_data, $item_memos, $work_date = '') {
                         $photo_count = (int)($item['photo_count'] ?? 1);
                         $is_excluded = ($item['is_excluded'] > 0);
                         $is_mobile_hidden = ($item['is_visible_mobile'] == 0);
@@ -433,7 +433,7 @@ if ($platform_id) {
                                                 $has_p = !empty($l);
                                                 $is_owner = true; 
                                             ?>
-                                                <div class="admin-photo-slot" onclick="<?php echo $has_p ? "openImageViewer('../view_photo.php?path=".urlencode($l['photo_url'])."&t=".time()."', {$item['item_id']}, true, $i)" : "startCapture({$item['item_id']}, $i)"; ?>">
+                                                <div class="admin-photo-slot" onclick="<?php echo $has_p ? "openImageViewer('../view_photo.php?path=".urlencode($l['photo_url'])."&t=".time()."', {$item['item_id']}, true, $i, '$work_date')" : "startCapture({$item['item_id']}, $i, '$work_date')"; ?>">
                                                     <span class="slot-label"><?php echo str_pad($i, 2, '0', STR_PAD_LEFT); ?></span>
                                                     <?php if ($has_p): ?>
                                                         <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>">
@@ -451,13 +451,13 @@ if ($platform_id) {
                                         <div id="slot-<?php echo $item['item_id']; ?>">
                                             <?php if ($has_p): ?>
                                                 <div class="position-relative">
-                                                    <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>" class="photo-preview shadow-sm" style="cursor: pointer;" alt="공정사진" onclick="openImageViewer('../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>', <?php echo $item['item_id']; ?>, true, 1)">
+                                                    <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>" class="photo-preview shadow-sm" style="cursor: pointer;" alt="공정사진" onclick="openImageViewer('../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>', <?php echo $item['item_id']; ?>, true, 1, '<?php echo $work_date; ?>')">
                                                     <div class="position-absolute top-0 end-0 m-2">
-                                                        <button class="btn btn-sm btn-light rounded-circle shadow-sm me-1" onclick="startCapture(<?php echo $item['item_id']; ?>, 1)" title="사진 변경"><i class="bi bi-camera"></i></button>
+                                                        <button class="btn btn-sm btn-light rounded-circle shadow-sm me-1" onclick="startCapture(<?php echo $item['item_id']; ?>, 1, '<?php echo $work_date; ?>')" title="사진 변경"><i class="bi bi-camera"></i></button>
                                                     </div>
                                                 </div>
                                             <?php else: ?>
-                                                <div class="empty-photo" style="cursor: pointer;" onclick="startCapture(<?php echo $item['item_id']; ?>, 1)">
+                                                <div class="empty-photo" style="cursor: pointer;" onclick="startCapture(<?php echo $item['item_id']; ?>, 1, '<?php echo $work_date; ?>')">
                                                     <i class="bi bi-camera fs-1 mb-2 text-primary opacity-50"></i>
                                                     <span class="small fw-bold text-primary opacity-75">사진 업로드 (클릭)</span>
                                                 </div>
@@ -520,7 +520,7 @@ if ($platform_id) {
                         foreach ($items as $item) {
                             if ($item['role_type'] !== 'Worker') continue;
                             $has_worker = true;
-                            renderAdminItemCard($item, $worker_logs[$item['item_id']] ?? [], $p_data, $item_memos);
+                            renderAdminItemCard($item, $worker_logs[$item['item_id']] ?? [], $p_data, $item_memos, '');
                         }
                         if (!$has_worker) echo '<div class="col-12 text-center py-3 text-muted small">해당 항목이 없습니다.</div>';
                         ?>
@@ -554,7 +554,7 @@ if ($platform_id) {
                                             if ($item['role_type'] !== 'Safety') continue;
                                             $s_logs = $safety_logs_by_date[$date][$item['item_id']] ?? [];
                                             // 사진이 없어도 작업자 항목처럼 카드 출력 (사용자 요청)
-                                            renderAdminItemCard($item, $s_logs, $p_data, $item_memos);
+                                            renderAdminItemCard($item, $s_logs, $p_data, $item_memos, $date);
                                         }
                                         ?>
                                     </div>
@@ -625,6 +625,7 @@ if ($platform_id) {
 <script>
 let activeItemId = null;
 let activePhotoIndex = 1;
+let activeWorkDate = '';
 const cameraInput = document.getElementById('cameraInput');
 let viewerModal = null;
 let alertModalObj = null;
@@ -663,12 +664,13 @@ function showConfirm(message, onConfirm) {
 }
 
 // 1. 입력 호출 전 동시성 체크 (선점 방지)
-async function checkItemStatusAndProceed(itemId, photoIndex, proceedCallback) {
+async function checkItemStatusAndProceed(itemId, photoIndex, workDate, proceedCallback) {
     try {
         const formData = new FormData();
         formData.append('item_id', itemId);
         formData.append('platform_id', '<?php echo $platform_id; ?>');
         formData.append('photo_index', photoIndex);
+        formData.append('date', workDate);
         
         const response = await fetch('../user/check_item_status.php', { method: 'POST', body: formData });
         const result = await response.json();
@@ -685,10 +687,11 @@ async function checkItemStatusAndProceed(itemId, photoIndex, proceedCallback) {
     }
 }
 
-function startCapture(itemId, photoIndex = 1) {
-    checkItemStatusAndProceed(itemId, photoIndex, () => {
+function startCapture(itemId, photoIndex = 1, workDate = '') {
+    checkItemStatusAndProceed(itemId, photoIndex, workDate, () => {
         activeItemId = itemId;
         activePhotoIndex = photoIndex;
+        activeWorkDate = workDate;
         cameraInput.click();
     });
 }
@@ -709,6 +712,7 @@ async function handlePhotoUpload(e) {
         formData.append('item_id', itemId);
         formData.append('platform_id', '<?php echo $platform_id; ?>');
         formData.append('photo_index', photoIndex);
+        formData.append('date', activeWorkDate);
 
         const response = await fetch('../user/api_upload_router.php', { method: 'POST', body: formData });
         const result = await response.json();
@@ -732,8 +736,9 @@ cameraInput.onchange = handlePhotoUpload;
 // 3. 라이트박스 뷰어 및 삭제 로직
 let currentViewerItemId = null;
 let currentViewerPhotoIndex = 1;
+let currentViewerWorkDate = '';
 
-function openImageViewer(url, itemId, isOwner, photoIndex = 1) {
+function openImageViewer(url, itemId, isOwner, photoIndex = 1, workDate = '') {
     const lb = document.getElementById('customLightbox');
     const img = document.getElementById('lightboxImage');
     const delBtn = document.getElementById('deletePhotoBtn');
@@ -741,6 +746,7 @@ function openImageViewer(url, itemId, isOwner, photoIndex = 1) {
     img.src = url;
     currentViewerItemId = itemId;
     currentViewerPhotoIndex = photoIndex;
+    currentViewerWorkDate = workDate;
     
     if (isOwner) {
         delBtn.style.display = 'block';
@@ -773,6 +779,7 @@ document.getElementById('deletePhotoBtn').addEventListener('click', function() {
             formData.append('item_id', currentViewerItemId);
             formData.append('platform_id', '<?php echo $platform_id; ?>');
             formData.append('photo_index', currentViewerPhotoIndex);
+            formData.append('date', currentViewerWorkDate);
 
             const response = await fetch('../user/delete_photo_proc.php', { method: 'POST', body: formData });
             const result = await response.json();

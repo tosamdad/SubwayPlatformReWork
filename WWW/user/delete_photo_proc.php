@@ -50,9 +50,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // 2. 스토리지 타입 확인 및 삭제
             if (!empty($photo_url)) {
-                $admin_id = $_SESSION['user_id'];
-                if ($_SESSION['role_type'] === 'Worker' || $_SESSION['role_type'] === 'Safety') {
-                    $admin_id = $_SESSION['parent_admin_id'] ?? '';
+                $admin_id = '';
+                try {
+                    $stmt_owner = $pdo->prepare("
+                        SELECT c.admin_id 
+                        FROM platforms p 
+                        JOIN sites s ON p.site_id = s.site_id 
+                        JOIN constructions c ON s.const_id = c.const_id 
+                        WHERE p.platform_id = ?
+                    ");
+                    $stmt_owner->execute([$platform_id]);
+                    $admin_id = $stmt_owner->fetchColumn();
+                } catch (Exception $e) {}
+
+                if (!$admin_id) {
+                    $admin_id = $_SESSION['user_id'];
+                    if ($_SESSION['role_type'] === 'Worker' || $_SESSION['role_type'] === 'Safety') {
+                        $admin_id = $_SESSION['parent_admin_id'] ?? '';
+                    }
                 }
 
                 $storage_type = 'local';
