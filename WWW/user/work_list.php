@@ -21,8 +21,8 @@ try {
 
 $role_filter = "role_type = 'Worker'";
 if ($role_type === 'Safety') {
-    $role_filter = "role_type IN ('Worker', 'Safety')";
-} elseif ($role_type === 'Admin') {
+    $role_filter = "role_type = 'Safety'";
+} elseif ($role_type === 'Admin' || $role_type === 'SuperAdmin') {
     $role_filter = "1=1";
 }
 
@@ -349,7 +349,7 @@ $platform_html = "
     <div class='d-flex flex-column justify-content-center' style='line-height: 1.1; width: 100%; min-width: 220px; padding-right: 10px;'>
         <div class='d-flex justify-content-between align-items-end mb-1'>
             <div>
-                <div style='font-size: 0.65rem; color: rgba(255,255,255,0.6); font-weight: 500; margin-bottom: 2px;'>{$site_name} | {$selected_date} 점검</div>
+                <div style='font-size: 0.65rem; color: rgba(255,255,255,0.6); font-weight: 500; margin-bottom: 2px;'>{$site_name}" . ($role_type === 'Safety' ? " | {$selected_date} 점검" : "") . "</div>
                 <div style='font-size: 1.15rem; font-weight: 800; color: white; letter-spacing: -0.02em;'>{$plat_name}</div>
             </div>
             <div class='text-end pb-1' style='line-height: 1;'>
