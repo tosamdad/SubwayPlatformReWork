@@ -55,10 +55,9 @@ if (!$platform_id && !empty($all_platforms)) {
 $p_data = null;
 if ($platform_id) {
     try {
-        $admin_item_filter = "";
-        if ($role === 'Admin') {
-            $admin_item_filter = " AND admin_id = " . $pdo->quote($user_id);
-        }
+        // 해당 현장 소유 관리자의 ID를 기준으로 항목 필터링 (다른 관리자의 중복 항목 방지)
+        $site_owner_id = $site['admin_id'];
+        $admin_item_filter = " AND admin_id = " . $pdo->quote($site_owner_id);
 
         // 안전 점검 일수 계산 (통계용)
         $stmt_safety_days = $pdo->prepare("SELECT COUNT(DISTINCT DATE(pl.timestamp)) FROM photo_logs pl JOIN items i ON pl.item_id = i.item_id WHERE pl.platform_id = ? AND i.role_type = 'Safety'");
@@ -67,21 +66,21 @@ if ($platform_id) {
         if ($safety_day_count < 1) $safety_day_count = 1;
 
         // 1. Worker Stats 계산
-        $stmt_w_total = $pdo->prepare("SELECT SUM(photo_count) FROM items WHERE is_visible_mobile = 1 AND role_type = 'Worker' AND ((platform_id IS NULL $admin_filter_sql AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR platform_id = ?)");
+        $stmt_w_total = $pdo->prepare("SELECT SUM(photo_count) FROM items WHERE is_visible_mobile = 1 AND role_type = 'Worker' AND ((platform_id IS NULL $admin_item_filter AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR platform_id = ?)");
         $stmt_w_total->execute([$platform_id, $platform_id]);
         $w_total = (int)$stmt_w_total->fetchColumn();
 
-        $stmt_w_up = $pdo->prepare("SELECT COUNT(DISTINCT pl.item_id, pl.photo_index) FROM photo_logs pl JOIN items i ON pl.item_id = i.item_id WHERE pl.platform_id = ? AND i.role_type = 'Worker' AND i.is_visible_mobile = 1 AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )");
+        $stmt_w_up = $pdo->prepare("SELECT COUNT(DISTINCT pl.item_id, pl.photo_index) FROM photo_logs pl JOIN items i ON pl.item_id = i.item_id WHERE pl.platform_id = ? AND i.role_type = 'Worker' AND i.is_visible_mobile = 1 AND ( (i.platform_id IS NULL $admin_item_filter AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )");
         $stmt_w_up->execute([$platform_id, $platform_id, $platform_id]);
         $w_up = (int)$stmt_w_up->fetchColumn();
 
         // 2. Safety Stats 계산 (점검 일수 반영)
-        $stmt_s_total = $pdo->prepare("SELECT SUM(photo_count) FROM items WHERE is_visible_mobile = 1 AND role_type = 'Safety' AND ((platform_id IS NULL $admin_filter_sql AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR platform_id = ?)");
+        $stmt_s_total = $pdo->prepare("SELECT SUM(photo_count) FROM items WHERE is_visible_mobile = 1 AND role_type = 'Safety' AND ((platform_id IS NULL $admin_item_filter AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR platform_id = ?)");
         $stmt_s_total->execute([$platform_id, $platform_id]);
         $s_total_raw = (int)$stmt_s_total->fetchColumn();
         $s_total = $s_total_raw * $safety_day_count;
 
-        $stmt_s_up = $pdo->prepare("SELECT COUNT(*) FROM photo_logs pl JOIN items i ON pl.item_id = i.item_id WHERE pl.platform_id = ? AND i.role_type = 'Safety' AND i.is_visible_mobile = 1 AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )");
+        $stmt_s_up = $pdo->prepare("SELECT COUNT(*) FROM photo_logs pl JOIN items i ON pl.item_id = i.item_id WHERE pl.platform_id = ? AND i.role_type = 'Safety' AND i.is_visible_mobile = 1 AND ( (i.platform_id IS NULL $admin_item_filter AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )");
         $stmt_s_up->execute([$platform_id, $platform_id, $platform_id]);
         $s_up = (int)$stmt_s_up->fetchColumn();
 
@@ -100,7 +99,7 @@ if ($platform_id) {
                 JOIN items i ON pl.item_id = i.item_id 
                 WHERE pl.platform_id = ? AND i.role_type = 'Safety' AND i.is_visible_mobile = 1 
                 AND DATE(pl.timestamp) = ?
-                AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )
+                AND ( (i.platform_id IS NULL $admin_item_filter AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )
             ");
             $stmt_s_up_day->execute([$platform_id, $selected_safety_date, $platform_id, $platform_id]);
             $s_up_view = (int)$stmt_s_up_day->fetchColumn();
