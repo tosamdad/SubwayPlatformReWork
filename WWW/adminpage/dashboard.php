@@ -161,7 +161,7 @@ try {
         JOIN sites s ON p.site_id = s.site_id
         JOIN constructions c ON s.const_id = c.const_id
         JOIN items i ON i.admin_id = c.admin_id
-        LEFT JOIN item_exclusions ie ON ie.item_id = i.item_id AND ie.platform_id = p.platform_id
+        LEFT JOIN platform_excluded_items ie ON ie.item_id = i.item_id AND ie.platform_id = p.platform_id
         WHERE i.role_type = 'Safety' 
         AND ie.item_id IS NULL 
         AND (i.platform_id IS NULL OR i.platform_id = p.platform_id)
