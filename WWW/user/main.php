@@ -140,13 +140,49 @@ include_once 'inc/nav.php';
     
     <!-- 마지막 작업 승강장 이동 버튼 (공사명 위에 배치) -->
     <?php if ($recent_platform): ?>
-    <a href="work_list.php?platform_id=<?php echo $recent_platform['platform_id']; ?>" class="recent-btn">
+    <a href="work_list.php?platform_id=<?php echo $recent_platform['platform_id']; ?>" class="recent-btn" id="recentBtn">
         <div class="d-flex align-items-center gap-2">
             <i class="bi bi-clock-history"></i>
             <span>마지막 작업 승강장 이동 (<?php echo h($recent_platform['platform_name']); ?>)</span>
         </div>
         <i class="bi bi-chevron-right small"></i>
     </a>
+    <?php endif; ?>
+
+    <?php if ($role_type === 'Safety'): ?>
+    <!-- 안전관리자 전용 날짜 선택 UI -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 1.25rem;">
+        <div class="card-body p-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-calendar-check-fill text-primary"></i>
+                <span class="fw-bold text-dark">점검 일자 선택</span>
+            </div>
+            <div class="input-group">
+                <input type="date" id="targetDate" class="form-control border-0 bg-light" style="border-radius: 0.75rem; font-weight: 700;" value="<?php echo date('Y-m-d'); ?>">
+            </div>
+            <div class="mt-2 small text-muted">
+                <i class="bi bi-info-circle me-1"></i> 안전 점검은 선택한 날짜의 데이터로 관리됩니다.
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateInput = document.getElementById('targetDate');
+            
+            // 모든 승강장 링크에 날짜 파라미터 동적 추가
+            function updateLinks() {
+                const selectedDate = dateInput.value;
+                document.querySelectorAll('.plat-btn, #recentBtn').forEach(btn => {
+                    const url = new URL(btn.href, window.location.origin);
+                    url.searchParams.set('date', selectedDate);
+                    btn.href = url.pathname + url.search;
+                });
+            }
+
+            dateInput.addEventListener('change', updateLinks);
+            updateLinks(); // 초기 실행
+        });
+    </script>
     <?php endif; ?>
 
     <!-- 공사 트리 구조 리스트 -->

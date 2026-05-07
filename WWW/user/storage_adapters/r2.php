@@ -36,7 +36,7 @@ $mime_type = $image_info['mime'];
 // 코드 정보 조회
 try {
     $stmt_codes = $pdo->prepare("
-        SELECT c.const_code, s.site_code, p.platform_code, i.item_code
+        SELECT c.const_code, s.site_code, p.platform_code, i.item_code, i.role_type
         FROM platforms p
         JOIN sites s ON p.site_id = s.site_id
         JOIN constructions c ON s.const_id = c.const_id
@@ -52,8 +52,12 @@ try {
         exit;
     }
 
+    $is_safety = ($codes['role_type'] === 'Safety');
+    $selected_date = $_POST['date'] ?? date('Y-m-d');
+    $date_suffix = $is_safety ? "_" . str_replace('-', '', $selected_date) : "";
+
     $idx_str = str_pad($photo_index, 2, '0', STR_PAD_LEFT);
-    $filename = $codes['const_code'] . "_" . $codes['site_code'] . "_" . $codes['platform_code'] . "_" . $codes['item_code'] . "_" . $idx_str . ".jpg";
+    $filename = $codes['const_code'] . "_" . $codes['site_code'] . "_" . $codes['platform_code'] . "_" . $codes['item_code'] . $date_suffix . "_" . $idx_str . ".jpg";
     
     // R2 업로드 경로
     $r2_key = "uploads/" . $codes['const_code'] . "/" . $codes['site_code'] . "/" . $codes['platform_code'] . "/" . $filename;
@@ -157,7 +161,12 @@ if ($http_code == 200 || $http_code == 201) {
     $db_save_path = $r2_key;
 
     try {
-        $stmt = $pdo->prepare("SELECT log_id, user_id FROM photo_logs WHERE platform_id = ? AND item_id = ? AND photo_index = ?");
+        $sql_check = "SELECT log_id, user_id FROM photo_logs WHERE platform_id = ? AND item_id = ? AND photo_index = ?";
+        if ($is_safety) {
+            $sql_check .= " AND DATE(timestamp) = " . $pdo->quote($selected_date);
+        }
+        
+        $stmt = $pdo->prepare($sql_check);
         $stmt->execute([$platform_id, $item_id, $photo_index]);
         $existing = $stmt->fetch();
         
@@ -166,11 +175,12 @@ if ($http_code == 200 || $http_code == 201) {
                 echo json_encode(['success' => false, 'message' => '다른 사용자('.$existing['user_id'].')가 이미 완료하였습니다.', 'force_refresh' => true]);
                 exit;
             }
-            $update = $pdo->prepare("UPDATE photo_logs SET photo_url = ?, timestamp = NOW() WHERE log_id = ?");
-            $update->execute([$db_save_path, $existing['log_id']]);
+            $update = $pdo->prepare("UPDATE photo_logs SET photo_url = ?, timestamp = ? WHERE log_id = ?");
+            $update->execute([$db_save_path, date('Y-m-d H:i:s'), $existing['log_id']]);
         } else {
-            $insert = $pdo->prepare("INSERT INTO photo_logs (platform_id, item_id, user_id, photo_url, photo_index) VALUES (?, ?, ?, ?, ?)");
-            $insert->execute([$platform_id, $item_id, $user_id, $db_save_path, $photo_index]);
+            $target_timestamp = ($is_safety) ? $selected_date . " " . date('H:i:s') : date('Y-m-d H:i:s');
+            $insert = $pdo->prepare("INSERT INTO photo_logs (platform_id, item_id, user_id, photo_url, photo_index, timestamp) VALUES (?, ?, ?, ?, ?, ?)");
+            $insert->execute([$platform_id, $item_id, $user_id, $db_save_path, $photo_index, $target_timestamp]);
         }
 
         echo json_encode(['success' => true, 'photo_url' => $db_save_path]);

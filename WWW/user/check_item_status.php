@@ -36,7 +36,19 @@ if ($admin_id) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT user_id FROM photo_logs WHERE item_id = ? AND platform_id = ? AND photo_index = ?");
+    // 항목 타입 확인
+    $stmt_type = $pdo->prepare("SELECT role_type FROM items WHERE item_id = ?");
+    $stmt_type->execute([$item_id]);
+    $role_type_item = $stmt_type->fetchColumn();
+    $is_safety = ($role_type_item === 'Safety');
+    $selected_date = $_POST['date'] ?? date('Y-m-d');
+
+    $sql = "SELECT user_id FROM photo_logs WHERE item_id = ? AND platform_id = ? AND photo_index = ?";
+    if ($is_safety) {
+        $sql .= " AND DATE(timestamp) = " . $pdo->quote($selected_date);
+    }
+    
+    $stmt = $pdo->prepare($sql);
     $stmt->execute([$item_id, $platform_id, $photo_index]);
     $log = $stmt->fetch();
 

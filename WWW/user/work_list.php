@@ -28,6 +28,9 @@ if ($role_type === 'Safety') {
 
 $parent_admin_id = $_SESSION['parent_admin_id'] ?? '';
 
+// 날짜 파라미터 처리 (안전관리 일별 점검용)
+$selected_date = $_GET['date'] ?? date('Y-m-d');
+
 try {
     // 본인(또는 상위 관리자)에게 귀속된 항목만 가져옴
     $admin_filter = "";
@@ -48,11 +51,28 @@ try {
     $stmt->execute([$platform_id, $platform_id]);
     $items = $stmt->fetchAll();
 
-    // 모든 로그를 가져와서 [item_id][photo_index] 형태로 맵핑
+    // 로그 가져오기: Worker는 전체 기간, Safety는 선택된 일자 기준
     $logs = [];
-    $stmt_logs = $pdo->prepare("SELECT * FROM photo_logs WHERE platform_id = ?");
-    $stmt_logs->execute([$platform_id]);
-    while ($row = $stmt_logs->fetch()) {
+    
+    // 1. Worker 항목 로그 (전체 기간)
+    $stmt_worker_logs = $pdo->prepare("
+        SELECT pl.* FROM photo_logs pl
+        JOIN items i ON pl.item_id = i.item_id
+        WHERE pl.platform_id = ? AND i.role_type = 'Worker'
+    ");
+    $stmt_worker_logs->execute([$platform_id]);
+    while ($row = $stmt_worker_logs->fetch()) {
+        $logs[$row['item_id']][$row['photo_index']] = $row;
+    }
+
+    // 2. Safety 항목 로그 (선택된 일자 기준)
+    $stmt_safety_logs = $pdo->prepare("
+        SELECT pl.* FROM photo_logs pl
+        JOIN items i ON pl.item_id = i.item_id
+        WHERE pl.platform_id = ? AND i.role_type = 'Safety' AND DATE(pl.timestamp) = ?
+    ");
+    $stmt_safety_logs->execute([$platform_id, $selected_date]);
+    while ($row = $stmt_safety_logs->fetch()) {
         $logs[$row['item_id']][$row['photo_index']] = $row;
     }
     
@@ -329,7 +349,7 @@ $platform_html = "
     <div class='d-flex flex-column justify-content-center' style='line-height: 1.1; width: 100%; min-width: 220px; padding-right: 10px;'>
         <div class='d-flex justify-content-between align-items-end mb-1'>
             <div>
-                <div style='font-size: 0.65rem; color: rgba(255,255,255,0.6); font-weight: 500; margin-bottom: 2px;'>{$site_name}</div>
+                <div style='font-size: 0.65rem; color: rgba(255,255,255,0.6); font-weight: 500; margin-bottom: 2px;'>{$site_name} | {$selected_date} 점검</div>
                 <div style='font-size: 1.15rem; font-weight: 800; color: white; letter-spacing: -0.02em;'>{$plat_name}</div>
             </div>
             <div class='text-end pb-1' style='line-height: 1;'>
@@ -643,6 +663,7 @@ async function checkItemStatusAndProceed(itemId, photoIndex, proceedCallback) {
         formData.append('item_id', itemId);
         formData.append('platform_id', '<?php echo $platform_id; ?>');
         formData.append('photo_index', photoIndex);
+        formData.append('date', '<?php echo $selected_date; ?>');
         
         const response = await fetch('check_item_status.php', { method: 'POST', body: formData });
         const result = await response.json();
@@ -693,6 +714,7 @@ async function handlePhotoUpload(e) {
         formData.append('item_id', itemId);
         formData.append('platform_id', '<?php echo $platform_id; ?>');
         formData.append('photo_index', photoIndex);
+        formData.append('date', '<?php echo $selected_date; ?>');
 
         const response = await fetch('api_upload_router.php', { method: 'POST', body: formData });
         const result = await response.json();
@@ -760,6 +782,7 @@ document.getElementById('deletePhotoBtn').addEventListener('click', function() {
             formData.append('item_id', currentViewerItemId);
             formData.append('platform_id', '<?php echo $platform_id; ?>');
             formData.append('photo_index', currentViewerPhotoIndex);
+            formData.append('date', '<?php echo $selected_date; ?>');
 
             const response = await fetch('delete_photo_proc.php', { method: 'POST', body: formData });
             const result = await response.json();

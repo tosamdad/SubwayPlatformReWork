@@ -46,7 +46,7 @@ if (!in_array($mime_type, $allowed_mime_types)) {
 // 3단계: 코드 정보 조회 (폴더 생성 및 파일명 생성용)
 try {
     $stmt_codes = $pdo->prepare("
-        SELECT c.const_code, s.site_code, p.platform_code, i.item_code
+        SELECT c.const_code, s.site_code, p.platform_code, i.item_code, i.role_type
         FROM platforms p
         JOIN sites s ON p.site_id = s.site_id
         JOIN constructions c ON s.const_id = c.const_id
@@ -62,6 +62,10 @@ try {
         exit;
     }
 
+    $is_safety = ($codes['role_type'] === 'Safety');
+    $selected_date = $_POST['date'] ?? date('Y-m-d');
+    $date_suffix = $is_safety ? "_" . str_replace('-', '', $selected_date) : "";
+
     // 계층형 폴더 경로 생성 (uploads/공사/역/승강장/)
     $sub_dir = $codes['const_code'] . "/" . $codes['site_code'] . "/" . $codes['platform_code'] . "/";
     $target_dir = $base_url . $sub_dir;
@@ -72,7 +76,7 @@ try {
 
     // 파일명 생성 규칙 (뒤에 인덱스 추가, 예: _01, _02)
     $idx_str = str_pad($photo_index, 2, '0', STR_PAD_LEFT);
-    $filename = $codes['const_code'] . "_" . $codes['site_code'] . "_" . $codes['platform_code'] . "_" . $codes['item_code'] . "_" . $idx_str . ".jpg";
+    $filename = $codes['const_code'] . "_" . $codes['site_code'] . "_" . $codes['platform_code'] . "_" . $codes['item_code'] . $date_suffix . "_" . $idx_str . ".jpg";
     $target_file = $target_dir . $filename;
     $db_save_path = "uploads/" . $sub_dir . $filename;
 
@@ -84,24 +88,32 @@ try {
 
 if (move_uploaded_file($tmp_file, $target_file)) {
     try {
-        // 동시성 검증 (인덱스별로 체크)
-        $stmt = $pdo->prepare("SELECT log_id, user_id FROM photo_logs WHERE platform_id = ? AND item_id = ? AND photo_index = ?");
+        // 동시성 검증 (인덱스별로 체크, Safety는 일자별로 체크)
+        $sql_check = "SELECT log_id, user_id FROM photo_logs WHERE platform_id = ? AND item_id = ? AND photo_index = ?";
+        if ($is_safety) {
+            $sql_check .= " AND DATE(timestamp) = " . $pdo->quote($selected_date);
+        }
+        
+        $stmt = $pdo->prepare($sql_check);
         $stmt->execute([$platform_id, $item_id, $photo_index]);
         $existing = $stmt->fetch();
         
         if ($existing) {
             if ($existing['user_id'] !== $user_id) {
                 @unlink($target_file);
-                ob_clean();
                 echo json_encode(['success' => false, 'message' => '다른 사용자('.$existing['user_id'].')가 이미 완료하였습니다.', 'force_refresh' => true]);
                 exit;
             }
             
-            $update = $pdo->prepare("UPDATE photo_logs SET photo_url = ?, timestamp = NOW() WHERE log_id = ?");
-            $update->execute([$db_save_path, $existing['log_id']]);
+            $update = $pdo->prepare("UPDATE photo_logs SET photo_url = ?, timestamp = ? WHERE log_id = ?");
+            // Safety인 경우 선택된 날짜와 현재 시각을 조합하여 저장하거나 그냥 NOW()를 씀.
+            // 여기서는 실제 작업 시각을 위해 NOW()를 쓰되, 점검일 기준 조회는 timestamp의 DATE 파트로 함.
+            $update->execute([$db_save_path, date('Y-m-d H:i:s'), $existing['log_id']]);
         } else {
-            $insert = $pdo->prepare("INSERT INTO photo_logs (platform_id, item_id, user_id, photo_url, photo_index) VALUES (?, ?, ?, ?, ?)");
-            $insert->execute([$platform_id, $item_id, $user_id, $db_save_path, $photo_index]);
+            // Safety 항목이고 오늘이 아닌 과거 날짜를 선택했다면 timestamp를 해당 날짜로 맞춰줌 (기록용)
+            $target_timestamp = ($is_safety) ? $selected_date . " " . date('H:i:s') : date('Y-m-d H:i:s');
+            $insert = $pdo->prepare("INSERT INTO photo_logs (platform_id, item_id, user_id, photo_url, photo_index, timestamp) VALUES (?, ?, ?, ?, ?, ?)");
+            $insert->execute([$platform_id, $item_id, $user_id, $db_save_path, $photo_index, $target_timestamp]);
         }
 
         echo json_encode(['success' => true, 'photo_url' => $db_save_path]);

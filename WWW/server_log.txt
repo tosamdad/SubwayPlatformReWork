@@ -15649,3 +15649,7 @@ Stack trace:
 [Thu Apr 30 18:18:09 2026] 127.0.0.1:64338 Closed without sending a request; it was probably just an unused speculative preconnection
 [Thu Apr 30 18:18:09 2026] 127.0.0.1:64338 Closing
 [2026-04-30 20:14:37.67] Error starting PHP server. Exit code: 1073807364. 
+[2026-05-07 15:00:54.00] Starting web server script... 
+[2026-05-07 15:00:54.01] Changed directory to E:\SubwayPlatformReWork\WWW 
+[2026-05-07 15:00:54.01] Executing: "C:/Users/taimu/scoop/apps/php/current/php.exe" -S 0.0.0.0:8080 -t . 
+[Thu May  7 15:00:54 2026] PHP 8.2.30 Development Server (http://0.0.0.0:8080) started

@@ -77,9 +77,9 @@ if ($platform_id) {
             $stmt_total->execute([$platform_id, $platform_id]);
             $total_count = (int)$stmt_total->fetchColumn();
             
-            // 촬영된 사진 수 쿼리
+            // 촬영된 사진 수 쿼리 (고유 항목/인덱스 기준으로 카운트하여 100% 초과 방지)
             $stmt_uploaded = $pdo->prepare("
-                SELECT COUNT(*) FROM photo_logs pl
+                SELECT COUNT(DISTINCT pl.item_id, pl.photo_index) FROM photo_logs pl
                 JOIN items i ON pl.item_id = i.item_id
                 WHERE pl.platform_id = ? AND i.is_visible_mobile = 1
                 AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )
@@ -122,13 +122,28 @@ if ($platform_id) {
         $stmt_items->execute([$platform_id, $platform_id]);
         $items = $stmt_items->fetchAll();
 
-    // 모든 로그를 가져와서 [item_id][photo_index] 형태로 맵핑
-    $item_logs = [];
-    $stmt_logs = $pdo->prepare("SELECT * FROM photo_logs WHERE platform_id = ?");
+    // 로그 가져오기 및 분류
+    $worker_logs = []; // [item_id][photo_index]
+    $safety_logs_by_date = []; // [date][item_id][photo_index]
+    $safety_dates = []; 
+    
+    $stmt_logs = $pdo->prepare("
+        SELECT pl.*, i.role_type 
+        FROM photo_logs pl
+        JOIN items i ON pl.item_id = i.item_id
+        WHERE pl.platform_id = ?
+    ");
     $stmt_logs->execute([$platform_id]);
     while ($row = $stmt_logs->fetch()) {
-        $item_logs[$row['item_id']][$row['photo_index']] = $row;
+        if ($row['role_type'] === 'Worker') {
+            $worker_logs[$row['item_id']][$row['photo_index']] = $row;
+        } else if ($row['role_type'] === 'Safety') {
+            $work_date = date('Y-m-d', strtotime($row['timestamp']));
+            $safety_logs_by_date[$work_date][$row['item_id']][$row['photo_index']] = $row;
+            if (!in_array($work_date, $safety_dates)) $safety_dates[] = $work_date;
+        }
     }
+    rsort($safety_dates); // 최신 점검일 순
     
     // 메모 데이터를 가져와서 맵핑
     $item_memos = [];
@@ -352,127 +367,159 @@ if ($platform_id) {
 
                 <div class="row g-4">
                     <?php 
-                    $current_group = '';
-                    foreach ($items as $item): 
+                    // 항목 카드 렌더링 도우미 함수
+                    function renderAdminItemCard($item, $logs, $p_data, $item_memos) {
                         $photo_count = (int)($item['photo_count'] ?? 1);
-                        $logs = $item_logs[$item['item_id']] ?? [];
-                        
                         $is_excluded = ($item['is_excluded'] > 0);
                         $is_mobile_hidden = ($item['is_visible_mobile'] == 0);
                         
-                        // 클래스 결정
                         $card_class = "";
                         if ($is_excluded) $card_class = "excluded";
                         else if ($is_mobile_hidden) $card_class = "mobile-hidden";
-                        
-                        if ($current_group !== $item['role_type']):
-                            $current_group = $item['role_type'];
-                    ?>
+                        ?>
+                        <div class="col-md-4 col-lg-3">
+                            <div class="photo-card h-100 border rounded-3 p-3 bg-white shadow-sm <?php echo $card_class; ?>" id="card-<?php echo $item['item_id']; ?>">
+                                <div class="mb-3">
+                                    <?php if ($photo_count > 1): ?>
+                                        <div class="admin-photo-grid">
+                                            <?php for ($i = 1; $i <= $photo_count; $i++): 
+                                                $l = $logs[$i] ?? null;
+                                                $has_p = !empty($l);
+                                                $is_owner = true; 
+                                            ?>
+                                                <div class="admin-photo-slot" onclick="<?php echo $has_p ? "openImageViewer('../view_photo.php?path=".urlencode($l['photo_url'])."&t=".time()."', {$item['item_id']}, true, $i)" : "startCapture({$item['item_id']}, $i)"; ?>">
+                                                    <span class="slot-label"><?php echo str_pad($i, 2, '0', STR_PAD_LEFT); ?></span>
+                                                    <?php if ($has_p): ?>
+                                                        <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>">
+                                                    <?php else: ?>
+                                                        <div class="empty-label"><i class="bi bi-camera"></i></div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endfor; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <?php 
+                                        $l = $logs[1] ?? null;
+                                        $has_p = !empty($l);
+                                        ?>
+                                        <div id="slot-<?php echo $item['item_id']; ?>">
+                                            <?php if ($has_p): ?>
+                                                <div class="position-relative">
+                                                    <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>" class="photo-preview shadow-sm" style="cursor: pointer;" alt="공정사진" onclick="openImageViewer('../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>', <?php echo $item['item_id']; ?>, true, 1)">
+                                                    <div class="position-absolute top-0 end-0 m-2">
+                                                        <button class="btn btn-sm btn-light rounded-circle shadow-sm me-1" onclick="startCapture(<?php echo $item['item_id']; ?>, 1)" title="사진 변경"><i class="bi bi-camera"></i></button>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="empty-photo" style="cursor: pointer;" onclick="startCapture(<?php echo $item['item_id']; ?>, 1)">
+                                                    <i class="bi bi-camera fs-1 mb-2 text-primary opacity-50"></i>
+                                                    <span class="small fw-bold text-primary opacity-75">사진 업로드 (클릭)</span>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <code class="small"><?php echo h($item['item_code']); ?></code>
+                                        <span class="badge <?php echo $item['role_type'] == 'Safety' ? 'bg-warning text-white' : 'bg-success'; ?> py-1 px-2" style="font-size: 0.6rem;"><?php echo h($item['role_type']); ?></span>
+                                    </div>
+                                    <div class="fw-bold text-dark text-truncate mb-1" title="<?php echo h($item['item_name']); ?>">
+                                        <?php echo h($item['item_name']); ?>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="text-muted small" style="font-size: 0.7rem;"><?php echo h($item['category_name']); ?></div>
+                                        <span class="badge <?php echo ($is_excluded || !is_null($item['platform_id'])) ? 'bg-danger bg-opacity-10 text-danger border-danger-subtle' : 'bg-primary bg-opacity-10 text-primary border-primary-subtle'; ?> fw-bold border" style="font-size: 0.65rem;">
+                                            <?php echo ($is_excluded || !is_null($item['platform_id'])) ? h($p_data['info']['platform_name']) . '만 적용' : '전체적용'; ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <?php 
+                                    $latest_time = null; $latest_user = null;
+                                    foreach ($logs as $log_row) {
+                                        if (!$latest_time || $log_row['timestamp'] > $latest_time) {
+                                            $latest_time = $log_row['timestamp']; $latest_user = $log_row['user_id'];
+                                        }
+                                    }
+                                    if ($latest_time): 
+                                    ?>
+                                        <div class="text-muted border-top pt-2 mt-2 d-flex justify-content-between align-items-center" style="font-size: 0.7rem;">
+                                            <span><i class="bi bi-person-fill me-1"></i> <?php echo h($latest_user ?? '-'); ?></span>
+                                            <span><i class="bi bi-clock me-1"></i> <?php echo date('m-d H:i', strtotime($latest_time)); ?></span>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($item_memos[$item['item_id']])): ?>
+                                        <div class="mt-2 p-2 rounded" style="background-color: #fff1f2; border: 1px solid #fecdd3; font-size: 0.75rem;">
+                                            <div class="fw-bold text-danger mb-1"><i class="bi bi-chat-text-fill me-1"></i>특이사항 메모</div>
+                                            <div class="text-dark" style="word-break: keep-all; line-height: 1.4;"><?php echo nl2br(h($item_memos[$item['item_id']])); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <?php
+                    }
+
+                    // 1. 작업자 항목 (Worker)
+                    if ($role_filter === 'All' || $role_filter === 'Worker'): ?>
                         <div class="col-12 mt-4 mb-2">
                             <div class="d-flex align-items-center">
-                                <h6 class="fw-bold mb-0 text-dark border-start border-4 border-primary ps-2">
-                                    <?php echo $current_group == 'Safety' ? '안전관리 항목' : '작업자 항목'; ?>
-                                </h6>
+                                <h6 class="fw-bold mb-0 text-dark border-start border-4 border-success ps-2">작업자 항목 (누적)</h6>
                                 <hr class="flex-grow-1 ms-3 opacity-10">
                             </div>
                         </div>
+                        <?php 
+                        $has_worker = false;
+                        foreach ($items as $item) {
+                            if ($item['role_type'] !== 'Worker') continue;
+                            $has_worker = true;
+                            renderAdminItemCard($item, $worker_logs[$item['item_id']] ?? [], $p_data, $item_memos);
+                        }
+                        if (!$has_worker) echo '<div class="col-12 text-center py-3 text-muted small">해당 항목이 없습니다.</div>';
+                        ?>
                     <?php endif; ?>
-                    <div class="col-md-4 col-lg-3">
-                        <div class="photo-card h-100 border rounded-3 p-3 bg-white shadow-sm <?php echo $card_class; ?>" id="card-<?php echo $item['item_id']; ?>">
-                            <div class="mb-3">
-                                <?php if ($photo_count > 1): ?>
-                                    <div class="admin-photo-grid">
-                                        <?php for ($i = 1; $i <= $photo_count; $i++): 
-                                            $l = $logs[$i] ?? null;
-                                            $has_p = !empty($l);
-                                            // 관리자는 모든 사진을 수정/삭제할 수 있도록 허용
-                                            $is_owner = true; 
-                                        ?>
-                                            <div class="admin-photo-slot" onclick="<?php echo $has_p ? "openImageViewer('../view_photo.php?path=".urlencode($l['photo_url'])."&t=".time()."', {$item['item_id']}, ".($is_owner?'true':'false').", $i)" : "startCapture({$item['item_id']}, $i)"; ?>">
-                                                <span class="slot-label"><?php echo str_pad($i, 2, '0', STR_PAD_LEFT); ?></span>
-                                                <?php if ($has_p): ?>
-                                                    <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>">
-                                                <?php else: ?>
-                                                    <div class="empty-label"><i class="bi bi-camera"></i></div>
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php endfor; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <?php 
-                                    $l = $logs[1] ?? null;
-                                    $has_p = !empty($l);
-                                    // 관리자는 모든 사진을 수정/삭제할 수 있도록 허용
-                                    $is_owner = true;
-                                    ?>
-                                    <div id="slot-<?php echo $item['item_id']; ?>">
-                                        <?php if ($has_p): ?>
-                                            <div class="position-relative">
-                                                <img src="../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>" class="photo-preview shadow-sm" style="cursor: pointer;" alt="공정사진" onclick="openImageViewer('../view_photo.php?path=<?php echo urlencode($l['photo_url']); ?>&t=<?php echo time(); ?>', <?php echo $item['item_id']; ?>, <?php echo $is_owner ? 'true' : 'false'; ?>, 1)">
-                                                <?php if ($is_owner): ?>
-                                                <div class="position-absolute top-0 end-0 m-2">
-                                                    <button class="btn btn-sm btn-light rounded-circle shadow-sm me-1" onclick="startCapture(<?php echo $item['item_id']; ?>, 1)" title="사진 변경"><i class="bi bi-camera"></i></button>
-                                                </div>
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="empty-photo" style="cursor: pointer;" onclick="startCapture(<?php echo $item['item_id']; ?>, 1)">
-                                                <i class="bi bi-camera fs-1 mb-2 text-primary opacity-50"></i>
-                                                <span class="small fw-bold text-primary opacity-75">사진 업로드 (클릭)</span>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                            <div>
-                                <div class="d-flex align-items-center justify-content-between mb-1">
-                                    <code class="small"><?php echo h($item['item_code']); ?></code>
-                                    <span class="badge <?php echo $item['role_type'] == 'Safety' ? 'bg-warning text-white' : 'bg-success'; ?> py-1 px-2" style="font-size: 0.6rem;"><?php echo h($item['role_type']); ?></span>
-                                </div>
-                                <div class="fw-bold text-dark text-truncate mb-1" title="<?php echo h($item['item_name']); ?>">
-                                    <?php echo h($item['item_name']); ?>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div class="text-muted small" style="font-size: 0.7rem;"><?php echo h($item['category_name']); ?></div>
-                                    <span class="badge <?php 
-                                        if ($is_excluded || !is_null($item['platform_id'])) echo 'bg-danger bg-opacity-10 text-danger border-danger-subtle';
-                                        else echo 'bg-primary bg-opacity-10 text-primary border-primary-subtle';
-                                    ?> fw-bold border" style="font-size: 0.65rem;">
-                                        <?php 
-                                        if ($is_excluded || !is_null($item['platform_id'])) echo h($p_data['info']['platform_name']) . '만 적용';
-                                        else echo '전체적용';
-                                        ?>
-                                    </span>
-                                </div>
-                                
-                                <?php 
-                                // 가장 최근 사진 시간 표시
-                                $latest_time = null;
-                                $latest_user = null;
-                                foreach ($logs as $l) {
-                                    if (!$latest_time || $l['timestamp'] > $latest_time) {
-                                        $latest_time = $l['timestamp'];
-                                        $latest_user = $l['user_id'];
-                                    }
-                                }
-                                if ($latest_time): 
-                                ?>
-                                    <div class="text-muted border-top pt-2 mt-2 d-flex justify-content-between align-items-center" style="font-size: 0.7rem;">
-                                        <span><i class="bi bi-person-fill me-1"></i> <?php echo h($latest_user ?? '-'); ?></span>
-                                        <span><i class="bi bi-clock me-1"></i> <?php echo date('m-d H:i', strtotime($latest_time)); ?></span>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($item_memos[$item['item_id']])): ?>
-                                    <div class="mt-2 p-2 rounded" style="background-color: #fff1f2; border: 1px solid #fecdd3; font-size: 0.75rem;">
-                                        <div class="fw-bold text-danger mb-1"><i class="bi bi-chat-text-fill me-1"></i>특이사항 메모</div>
-                                        <div class="text-dark" style="word-break: keep-all; line-height: 1.4;"><?php echo nl2br(h($item_memos[$item['item_id']])); ?></div>
-                                    </div>
-                                <?php endif; ?>
+
+                    <?php 
+                    // 2. 안전관리 항목 (Safety) - 일자별 그룹화
+                    if ($role_filter === 'All' || $role_filter === 'Safety'): ?>
+                        <div class="col-12 mt-5 mb-2">
+                            <div class="d-flex align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark border-start border-4 border-warning ps-2">안전관리 점검 내역 (일자별)</h6>
+                                <hr class="flex-grow-1 ms-3 opacity-10">
                             </div>
                         </div>
-                    </div>
-                    <?php endforeach; ?>
+                        
+                        <?php if (empty($safety_dates)): ?>
+                            <div class="col-12 text-center py-4 text-muted small">안전 점검 내역이 없습니다.</div>
+                        <?php else: ?>
+                            <?php foreach ($safety_dates as $date): ?>
+                                <div class="col-12 mt-3">
+                                    <div class="bg-light p-2 px-3 rounded-pill d-inline-block fw-bold text-primary mb-3 shadow-sm border border-primary-subtle" style="font-size: 0.85rem;">
+                                        <i class="bi bi-calendar-check me-2"></i><?php echo $date; ?> 점검 항목
+                                    </div>
+                                    <div class="row g-4">
+                                        <?php 
+                                        foreach ($items as $item) {
+                                            if ($item['role_type'] !== 'Safety') continue;
+                                            $s_logs = $safety_logs_by_date[$date][$item['item_id']] ?? [];
+                                            if (empty($s_logs)) continue;
+                                            renderAdminItemCard($item, $s_logs, $p_data, $item_memos);
+                                        }
+                                        ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                    
+                    <?php if (empty($items)): ?>
+                        <div class="col-12 text-center py-5">
+                            <i class="bi bi-info-circle fs-1 text-muted d-block mb-3"></i>
+                            <p class="text-muted">해당 조건의 공정 항목이 없습니다.</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
                     <?php if (empty($items)): ?>
                         <div class="col-12 text-center py-5">
                             <i class="bi bi-info-circle fs-1 text-muted d-block mb-3"></i>

@@ -20,8 +20,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     try {
-        // 1. 기존 파일 경로 및 소유자 조회 (인덱스별)
-        $stmt = $pdo->prepare("SELECT log_id, photo_url, user_id FROM photo_logs WHERE platform_id = ? AND item_id = ? AND photo_index = ?");
+        // 항목 타입 확인
+        $stmt_type = $pdo->prepare("SELECT role_type FROM items WHERE item_id = ?");
+        $stmt_type->execute([$item_id]);
+        $role_type_item = $stmt_type->fetchColumn();
+        $is_safety = ($role_type_item === 'Safety');
+        $selected_date = $_POST['date'] ?? date('Y-m-d');
+
+        // 1. 기존 파일 경로 및 소유자 조회 (인덱스별, Safety는 일자별)
+        $sql = "SELECT log_id, photo_url, user_id FROM photo_logs WHERE platform_id = ? AND item_id = ? AND photo_index = ?";
+        if ($is_safety) {
+            $sql .= " AND DATE(timestamp) = " . $pdo->quote($selected_date);
+        }
+        $stmt = $pdo->prepare($sql);
         $stmt->execute([$platform_id, $item_id, $photo_index]);
         $existing = $stmt->fetch();
 
