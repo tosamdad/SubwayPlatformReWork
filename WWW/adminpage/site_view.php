@@ -85,16 +85,41 @@ if ($platform_id) {
         $stmt_s_up->execute([$platform_id, $platform_id, $platform_id]);
         $s_up = (int)$stmt_s_up->fetchColumn();
 
+        // 3. 현재 뷰(필터) 기준 실시간 통계 보정 (특정 일자 선택 시)
+        $s_total_view = $s_total;
+        $s_up_view = $s_up;
+        $all_total_view = $w_total + $s_total;
+        $all_up_view = $w_up + $s_up;
+
+        if (!empty($selected_safety_date)) {
+            // 특정 날짜가 선택된 경우, 해당 날짜의 통계만 추출
+            $s_total_view = $s_total_raw; // 1일분 수량
+            
+            $stmt_s_up_day = $pdo->prepare("
+                SELECT COUNT(*) FROM photo_logs pl 
+                JOIN items i ON pl.item_id = i.item_id 
+                WHERE pl.platform_id = ? AND i.role_type = 'Safety' AND i.is_visible_mobile = 1 
+                AND DATE(pl.timestamp) = ?
+                AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )
+            ");
+            $stmt_s_up_day->execute([$platform_id, $selected_safety_date, $platform_id, $platform_id]);
+            $s_up_view = (int)$stmt_s_up_day->fetchColumn();
+
+            // '전체' 통계도 해당 일자 안전 + 누적 작업자 합계로 보정 (또는 필요에 따라 조정 가능)
+            $all_total_view = $w_total + $s_total_view;
+            $all_up_view = $w_up + $s_up_view;
+        }
+
         $stats = [
             'All' => [
-                'total' => $w_total + $s_total,
-                'uploaded' => $w_up + $s_up,
-                'progress' => ($w_total + $s_total > 0) ? round((($w_up + $s_up) / ($w_total + $s_total)) * 100) : 0
+                'total' => $all_total_view,
+                'uploaded' => $all_up_view,
+                'progress' => ($all_total_view > 0) ? round(($all_up_view / $all_total_view) * 100) : 0
             ],
             'Safety' => [
-                'total' => $s_total,
-                'uploaded' => $s_up,
-                'progress' => ($s_total > 0) ? round(($s_up / $s_total) * 100) : 0
+                'total' => $s_total_view,
+                'uploaded' => $s_up_view,
+                'progress' => ($s_total_view > 0) ? round(($s_up_view / $s_total_view) * 100) : 0
             ],
             'Worker' => [
                 'total' => $w_total,
@@ -539,13 +564,6 @@ if ($platform_id) {
                         <?php endif; ?>
                     <?php endif; ?>
                     
-                    <?php if (empty($items)): ?>
-                        <div class="col-12 text-center py-5">
-                            <i class="bi bi-info-circle fs-1 text-muted d-block mb-3"></i>
-                            <p class="text-muted">해당 조건의 공정 항목이 없습니다.</p>
-                        </div>
-                    <?php endif; ?>
-                </div>
                     <?php if (empty($items)): ?>
                         <div class="col-12 text-center py-5">
                             <i class="bi bi-info-circle fs-1 text-muted d-block mb-3"></i>
