@@ -108,7 +108,6 @@ $user_id = $_SESSION['user_id'] ?? '';
                         
                         echo '<a class="nav-link '.($is_plat_active ? 'active fw-bold' : '').' py-1 small d-flex justify-content-between align-items-center" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;" href="site_view.php?site_id='.$s_site['site_id'].'&platform_id='.$s_plat['platform_id'].'">';
                         echo '<span><i class="bi bi-record-fill me-1" style="font-size: 0.35rem;"></i>'.h($s_plat['platform_name']).'</span>';
-                        echo '<span class="badge '.($prog == 100 ? 'bg-success' : 'bg-secondary').' opacity-75" style="font-size: 0.55rem; padding: 0.2em 0.4em;">'.$prog.'%</span>';
                         echo '</a>';
                     }
                     echo '</div>';

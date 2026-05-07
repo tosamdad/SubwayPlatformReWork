@@ -66,58 +66,42 @@ if ($platform_id) {
         $safety_day_count = (int)$stmt_safety_days->fetchColumn();
         if ($safety_day_count < 1) $safety_day_count = 1;
 
-        $stats = [];
-        foreach (['All', 'Safety', 'Worker'] as $r) {
-            $where_role = ($r === 'All') ? "" : " AND role_type = '$r' ";
-            
-            // 전체 대상 항목 쿼리 (마스터 항목 - 제외 항목 + 현장 전용 항목)
-            $admin_filter_sql = ($role === 'Admin') ? " AND admin_id = " . $pdo->quote($user_id) : "";
-            $stmt_total = $pdo->prepare("
-                SELECT SUM(photo_count) FROM items 
-                WHERE is_visible_mobile = 1
-                AND (
-                    (platform_id IS NULL $admin_filter_sql AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
-                    OR platform_id = ?
-                )
-                $where_role
-            ");
-            $stmt_total->execute([$platform_id, $platform_id]);
-            $total_count = (int)$stmt_total->fetchColumn();
-            
-            // 촬영된 사진 수 쿼리 (고유 항목/인덱스 기준으로 카운트하여 100% 초과 방지)
-            $stmt_uploaded = $pdo->prepare("
-                SELECT COUNT(DISTINCT pl.item_id, pl.photo_index) FROM photo_logs pl
-                JOIN items i ON pl.item_id = i.item_id
-                WHERE pl.platform_id = ? AND i.is_visible_mobile = 1
-                AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )
-                $where_role
-            ");
-            $stmt_uploaded->execute([$platform_id, $platform_id, $platform_id]);
-            $uploaded_count = (int)$stmt_uploaded->fetchColumn();
+        // 1. Worker Stats 계산
+        $stmt_w_total = $pdo->prepare("SELECT SUM(photo_count) FROM items WHERE is_visible_mobile = 1 AND role_type = 'Worker' AND ((platform_id IS NULL $admin_filter_sql AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR platform_id = ?)");
+        $stmt_w_total->execute([$platform_id, $platform_id]);
+        $w_total = (int)$stmt_w_total->fetchColumn();
 
-            // 안전 항목의 경우 전체 기간(일수)을 고려하여 총 개수 산정
-            if ($r === 'Safety') {
-                $total_count = $total_count * $safety_day_count;
-                // 안전 항목은 일자별로 누적되므로 COUNT(*) 사용 (DISTINCT 해제)
-                $stmt_uploaded_raw = $pdo->prepare("
-                    SELECT COUNT(*) FROM photo_logs pl
-                    JOIN items i ON pl.item_id = i.item_id
-                    WHERE pl.platform_id = ? AND i.is_visible_mobile = 1
-                    AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )
-                    AND i.role_type = 'Safety'
-                ");
-                $stmt_uploaded_raw->execute([$platform_id, $platform_id, $platform_id]);
-                $uploaded_count = (int)$stmt_uploaded_raw->fetchColumn();
-            }
-            
-            $progress = ($total_count > 0) ? round(($uploaded_count / $total_count) * 100) : 0;
-            
-            $stats[$r] = [
-                'total' => $total_count,
-                'uploaded' => $uploaded_count,
-                'progress' => $progress
-            ];
-        }
+        $stmt_w_up = $pdo->prepare("SELECT COUNT(DISTINCT pl.item_id, pl.photo_index) FROM photo_logs pl JOIN items i ON pl.item_id = i.item_id WHERE pl.platform_id = ? AND i.role_type = 'Worker' AND i.is_visible_mobile = 1 AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )");
+        $stmt_w_up->execute([$platform_id, $platform_id, $platform_id]);
+        $w_up = (int)$stmt_w_up->fetchColumn();
+
+        // 2. Safety Stats 계산 (점검 일수 반영)
+        $stmt_s_total = $pdo->prepare("SELECT SUM(photo_count) FROM items WHERE is_visible_mobile = 1 AND role_type = 'Safety' AND ((platform_id IS NULL $admin_filter_sql AND item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR platform_id = ?)");
+        $stmt_s_total->execute([$platform_id, $platform_id]);
+        $s_total_raw = (int)$stmt_s_total->fetchColumn();
+        $s_total = $s_total_raw * $safety_day_count;
+
+        $stmt_s_up = $pdo->prepare("SELECT COUNT(*) FROM photo_logs pl JOIN items i ON pl.item_id = i.item_id WHERE pl.platform_id = ? AND i.role_type = 'Safety' AND i.is_visible_mobile = 1 AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )");
+        $stmt_s_up->execute([$platform_id, $platform_id, $platform_id]);
+        $s_up = (int)$stmt_s_up->fetchColumn();
+
+        $stats = [
+            'All' => [
+                'total' => $w_total + $s_total,
+                'uploaded' => $w_up + $s_up,
+                'progress' => ($w_total + $s_total > 0) ? round((($w_up + $s_up) / ($w_total + $s_total)) * 100) : 0
+            ],
+            'Safety' => [
+                'total' => $s_total,
+                'uploaded' => $s_up,
+                'progress' => ($s_total > 0) ? round(($s_up / $s_total) * 100) : 0
+            ],
+            'Worker' => [
+                'total' => $w_total,
+                'uploaded' => $w_up,
+                'progress' => ($w_total > 0) ? round(($w_up / $w_total) * 100) : 0
+            ]
+        ];
         
         $p_stmt = $pdo->prepare("SELECT * FROM platforms WHERE platform_id = ?");
         $p_stmt->execute([$platform_id]);
@@ -384,7 +368,17 @@ if ($platform_id) {
                                 <?php 
                                 $active_count = 0;
                                 foreach($items as $it) {
-                                    if(!($it['is_excluded'] > 0) && $it['is_visible_mobile'] == 1) $active_count++;
+                                    if(!($it['is_excluded'] > 0) && $it['is_visible_mobile'] == 1) {
+                                        if ($role_filter === 'All') {
+                                            if ($it['role_type'] === 'Safety') $active_count += $p_data['safety_day_count'];
+                                            else $active_count++;
+                                        } else if ($role_filter === 'Safety') {
+                                            if (!empty($selected_safety_date)) $active_count++;
+                                            else $active_count += $p_data['safety_day_count'];
+                                        } else {
+                                            if ($it['role_type'] === 'Worker') $active_count++;
+                                        }
+                                    }
                                 }
                                 echo $active_count;
                                 ?>개
