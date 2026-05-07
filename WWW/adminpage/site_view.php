@@ -13,6 +13,7 @@ if (!$role || ($role !== 'Admin' && $role !== 'SuperAdmin')) {
 $site_id = $_GET['site_id'] ?? '';
 $platform_id = $_GET['platform_id'] ?? '';
 $role_filter = $_GET['role'] ?? 'All'; // All | Safety | Worker
+$selected_safety_date = $_GET['date'] ?? ''; // 선택된 안전 점검 일자
 
 if (!$site_id) {
     echo "<script>alert('잘못된 접근입니다.'); location.href='projects.php';</script>";
@@ -366,8 +367,15 @@ if ($platform_id) {
                         <div class="filter-tabs btn-group p-1 bg-white border rounded-pill shadow-sm" style="font-size: 0.85rem;">
                             <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=All" 
                                class="btn <?php echo $role_filter == 'All' ? 'btn-primary' : 'btn-light'; ?> rounded-pill px-3">전체</a>
-                            <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Safety" 
-                               class="btn <?php echo $role_filter == 'Safety' ? 'btn-warning text-white' : 'btn-light'; ?> rounded-pill px-3">안전 (<?php echo $safety_day_count; ?>일)</a>
+                            
+                            <?php foreach ($safety_dates as $sd): 
+                                $sd_display = date('md', strtotime($sd)) . '안전';
+                                $is_active = ($role_filter == 'Safety' && $selected_safety_date == $sd);
+                            ?>
+                                <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Safety&date=<?php echo $sd; ?>" 
+                                   class="btn <?php echo $is_active ? 'btn-warning text-white' : 'btn-light'; ?> rounded-pill px-3"><?php echo $sd_display; ?></a>
+                            <?php endforeach; ?>
+
                             <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Worker" 
                                class="btn <?php echo $role_filter == 'Worker' ? 'btn-success' : 'btn-light'; ?> rounded-pill px-3">작업자</a>
                         </div>
@@ -513,7 +521,11 @@ if ($platform_id) {
                         <?php if (empty($safety_dates)): ?>
                             <div class="col-12 text-center py-4 text-muted small">안전 점검 내역이 없습니다.</div>
                         <?php else: ?>
-                            <?php foreach ($safety_dates as $date): ?>
+                            <?php 
+                            foreach ($safety_dates as $date): 
+                                // 특정 날짜가 선택된 경우 해당 날짜만 출력
+                                if ($role_filter === 'Safety' && !empty($selected_safety_date) && $selected_safety_date !== $date) continue;
+                            ?>
                                 <div class="col-12 mt-3">
                                     <div class="bg-light p-2 px-3 rounded-pill d-inline-block fw-bold text-primary mb-3 shadow-sm border border-primary-subtle" style="font-size: 0.85rem;">
                                         <i class="bi bi-calendar-check me-2"></i><?php echo $date; ?> 점검 항목
