@@ -155,7 +155,19 @@ $days_in_month = date('t', strtotime("$view_month-01"));
 $safety_calendar_data = [];
 try {
     $sql_cal = "
-        SELECT DATE(pl.timestamp) as work_date, p.platform_name, s.site_name
+        SELECT 
+            DATE(pl.timestamp) as work_date, 
+            p.platform_id,
+            p.platform_name, 
+            s.site_name,
+            COUNT(pl.log_id) as uploaded_count,
+            (SELECT SUM(i2.photo_count) 
+             FROM items i2 
+             WHERE i2.role_type = 'Safety' 
+             AND i2.is_excluded = 0
+             AND (i2.platform_id IS NULL OR i2.platform_id = p.platform_id)
+             AND i2.admin_id = c.admin_id
+            ) as total_required
         FROM photo_logs pl
         JOIN items i ON pl.item_id = i.item_id
         JOIN platforms p ON pl.platform_id = p.platform_id
@@ -168,7 +180,17 @@ try {
     ";
     $cal_results = $pdo->query($sql_cal)->fetchAll();
     foreach ($cal_results as $row) {
-        $safety_calendar_data[$row['work_date']][] = h($row['site_name']) . ' - ' . h($row['platform_name']);
+        $up = (int)$row['uploaded_count'];
+        $total = (int)$row['total_required'];
+        $percent = $total > 0 ? round(($up / $total) * 100) : 0;
+        
+        $safety_calendar_data[$row['work_date']][] = [
+            'site_name' => $row['site_name'],
+            'platform_name' => $row['platform_name'],
+            'up' => $up,
+            'total' => $total,
+            'percent' => $percent
+        ];
     }
 } catch (Exception $e) {}
 
@@ -251,18 +273,16 @@ try {
         
         .safety-badge {
             font-size: 0.72rem;
-            padding: 0.25rem 0.6rem;
+            padding: 0.4rem 0.6rem;
             border-radius: 0.5rem;
             background: #fffbeb;
             color: #b45309;
             border: 1px solid #fde68a;
             margin-bottom: 4px;
             display: block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             font-weight: 600;
             cursor: help;
+            line-height: 1.2;
         }
         .safety-badge:hover { background: #fef3c7; }
         
@@ -374,9 +394,20 @@ try {
                                 <?php 
                                 $count = count($platforms);
                                 $display_limit = 2;
-                                foreach (array_slice($platforms, 0, $display_limit) as $p_name): ?>
-                                    <div class="safety-badge" data-bs-toggle="popover" data-bs-trigger="hover focus" title="<?php echo $day; ?>일 안전 점검 목록" data-bs-content="<?php echo implode('<br>', $platforms); ?>" data-bs-html="true">
-                                        <i class="bi bi-shield-check me-1"></i><?php echo $p_name; ?>
+                                
+                                // 팝오버용 전체 텍스트 생성
+                                $popover_content = "";
+                                foreach ($platforms as $p) {
+                                    $popover_content .= "• " . h($p['site_name']) . " - " . h($p['platform_name']) . " (" . $p['up'] . "/" . $p['total'] . ", " . $p['percent'] . "%)<br>";
+                                }
+
+                                foreach (array_slice($platforms, 0, $display_limit) as $p): ?>
+                                    <div class="safety-badge" data-bs-toggle="popover" data-bs-trigger="hover focus" title="<?php echo $day; ?>일 안전 점검 상세" data-bs-content="<?php echo $popover_content; ?>" data-bs-html="true">
+                                        <div class="text-truncate"><i class="bi bi-shield-check me-1"></i><?php echo h($p['platform_name']); ?></div>
+                                        <div class="d-flex justify-content-between align-items-center mt-1" style="font-size: 0.6rem; opacity: 0.8;">
+                                            <span><?php echo $p['up']; ?>/<?php echo $p['total']; ?></span>
+                                            <span><?php echo $p['percent']; ?>%</span>
+                                        </div>
                                     </div>
                                 <?php endforeach; ?>
                                 <?php if ($count > $display_limit): ?>
