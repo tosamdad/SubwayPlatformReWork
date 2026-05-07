@@ -144,21 +144,32 @@ try {
 
 } catch (Exception $e) {}
 
-// 3. 최근 활동 (최근 10개 업로드 사진)
-$recent_activities = [];
+// 3. 안전 점검 달력 데이터
+$view_month = $_GET['month'] ?? date('Y-m');
+$year = date('Y', strtotime($view_month));
+$month = date('m', strtotime($view_month));
+
+$first_day_of_month = date('w', strtotime("$view_month-01"));
+$days_in_month = date('t', strtotime("$view_month-01"));
+
+$safety_calendar_data = [];
 try {
-    $sql_recent = "
-        SELECT pl.photo_url, pl.timestamp, pl.user_id, i.item_name, i.role_type, p.platform_name, s.site_name
+    $sql_cal = "
+        SELECT DATE(pl.timestamp) as work_date, p.platform_name, s.site_name
         FROM photo_logs pl
         JOIN items i ON pl.item_id = i.item_id
         JOIN platforms p ON pl.platform_id = p.platform_id
         JOIN sites s ON p.site_id = s.site_id
         JOIN constructions c ON s.const_id = c.const_id
-        WHERE 1=1 $admin_filter
-        ORDER BY pl.timestamp DESC
-        LIMIT 10
+        WHERE i.role_type = 'Safety' $admin_filter
+        AND DATE_FORMAT(pl.timestamp, '%Y-%m') = " . $pdo->quote($view_month) . "
+        GROUP BY work_date, p.platform_id
+        ORDER BY work_date ASC, s.site_id ASC, p.platform_id ASC
     ";
-    $recent_activities = $pdo->query($sql_recent)->fetchAll();
+    $cal_results = $pdo->query($sql_cal)->fetchAll();
+    foreach ($cal_results as $row) {
+        $safety_calendar_data[$row['work_date']][] = h($row['site_name']) . ' - ' . h($row['platform_name']);
+    }
 } catch (Exception $e) {}
 
 ?>
@@ -204,6 +215,60 @@ try {
         .bg-orange { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
 
         .recent-img { width: 50px; height: 50px; object-fit: cover; border-radius: 0.5rem; }
+
+        /* Calendar Styles */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e2e8f0;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        .calendar-day {
+            background: white;
+            min-height: 120px;
+            padding: 0.75rem;
+            position: relative;
+            transition: background 0.2s;
+        }
+        .calendar-day.header {
+            min-height: auto;
+            background: #f8fafc;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.75rem;
+            color: #64748b;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .calendar-day.empty { background: #f8fafc; }
+        .calendar-day.today { background: #f0f9ff; }
+        .calendar-day .day-num { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem; display: block; color: #475569; }
+        .calendar-day.today .day-num { color: #2563eb; }
+        
+        .safety-badge {
+            font-size: 0.72rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 0.5rem;
+            background: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fde68a;
+            margin-bottom: 4px;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 600;
+            cursor: help;
+        }
+        .safety-badge:hover { background: #fef3c7; }
+        
+        .popover { border-radius: 1rem; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .popover-header { background: #f8fafc; border-bottom: 1px solid #f1f5f9; font-weight: 700; border-radius: 1rem 1rem 0 0 !important; }
+        .popover-body { padding: 1rem; }
     </style>
 </head>
 <body>
@@ -265,53 +330,74 @@ try {
                 </div>
             </div>
 
-            <!-- 3. 최근 활동 -->
-            <div class="section-card">
+            <!-- 3. 안전 점검 일정표 (달력) -->
+            <div class="section-card shadow-sm border-0">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="fw-bold mb-0">최근 업로드 내역</h5>
+                    <div>
+                        <h5 class="fw-bold mb-1">안전 점검 일정표</h5>
+                        <p class="text-muted small mb-0">월간 승강장별 안전 점검 수행 현황입니다.</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 bg-light p-1 rounded-pill px-3 border">
+                        <a href="?month=<?php echo date('Y-m', strtotime($view_month . ' -1 month')); ?>" class="btn btn-sm btn-light rounded-circle shadow-sm"><i class="bi bi-chevron-left"></i></a>
+                        <span class="fw-bold text-dark px-2" style="min-width: 100px; text-align: center;"><?php echo date('Y년 m월', strtotime($view_month)); ?></span>
+                        <a href="?month=<?php echo date('Y-m', strtotime($view_month . ' +1 month')); ?>" class="btn btn-sm btn-light rounded-circle shadow-sm"><i class="bi bi-chevron-right"></i></a>
+                        <a href="?month=<?php echo date('Y-m'); ?>" class="btn btn-sm btn-outline-primary rounded-pill px-3 ms-2 fw-bold" style="font-size: 0.75rem;">오늘</a>
+                    </div>
                 </div>
                 
-                <?php if (empty($recent_activities)): ?>
-                    <div class="text-center py-4 text-muted">아직 업로드된 사진이 없습니다.</div>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>미리보기</th>
-                                    <th>현장 / 승강장</th>
-                                    <th>항목 명칭</th>
-                                    <th>역할</th>
-                                    <th>작업자</th>
-                                    <th>업로드 시간</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($recent_activities as $act): ?>
-                                <tr>
-                                    <td>
-                                        <img src="../view_photo.php?path=<?php echo urlencode($act['photo_url']); ?>" class="recent-img border" alt="사진">
-                                    </td>
-                                    <td>
-                                        <div class="fw-bold small"><?php echo h($act['site_name']); ?></div>
-                                        <div class="text-muted" style="font-size: 0.75rem;"><?php echo h($act['platform_name']); ?></div>
-                                    </td>
-                                    <td class="small fw-semibold"><?php echo h($act['item_name']); ?></td>
-                                    <td>
-                                        <?php if ($act['role_type'] == 'Safety'): ?>
-                                            <span class="badge bg-warning text-dark opacity-75">안전관리</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-success opacity-75">작업자</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="small text-muted"><i class="bi bi-person me-1"></i><?php echo h($act['user_id']); ?></td>
-                                    <td class="small text-muted"><?php echo h($act['timestamp']); ?></td>
-                                </tr>
+                <div class="calendar-grid">
+                    <!-- 요일 헤더 -->
+                    <div class="calendar-day header text-danger">일</div>
+                    <div class="calendar-day header">월</div>
+                    <div class="calendar-day header">화</div>
+                    <div class="calendar-day header">수</div>
+                    <div class="calendar-day header">목</div>
+                    <div class="calendar-day header">금</div>
+                    <div class="calendar-day header text-primary">토</div>
+
+                    <!-- 빈 칸 (첫 날 전까지) -->
+                    <?php for ($i = 0; $i < $first_day_of_month; $i++): ?>
+                        <div class="calendar-day empty"></div>
+                    <?php endfor; ?>
+
+                    <!-- 날짜 채우기 -->
+                    <?php 
+                    $today = date('Y-m-d');
+                    for ($day = 1; $day <= $days_in_month; $day++): 
+                        $current_date = sprintf("%s-%02d", $view_month, $day);
+                        $is_today = ($current_date == $today);
+                        $platforms = $safety_calendar_data[$current_date] ?? [];
+                    ?>
+                        <div class="calendar-day <?php echo $is_today ? 'today' : ''; ?>">
+                            <span class="day-num"><?php echo $day; ?></span>
+                            <?php if (!empty($platforms)): ?>
+                                <?php 
+                                $count = count($platforms);
+                                $display_limit = 2;
+                                foreach (array_slice($platforms, 0, $display_limit) as $p_name): ?>
+                                    <div class="safety-badge" data-bs-toggle="popover" data-bs-trigger="hover focus" title="<?php echo $day; ?>일 안전 점검 목록" data-bs-content="<?php echo implode('<br>', $platforms); ?>" data-bs-html="true">
+                                        <i class="bi bi-shield-check me-1"></i><?php echo $p_name; ?>
+                                    </div>
                                 <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
+                                <?php if ($count > $display_limit): ?>
+                                    <div class="text-muted ps-1" style="font-size: 0.65rem; font-weight: 600;">
+                                        외 <?php echo ($count - $display_limit); ?>건 더보기...
+                                    </div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    <?php endfor; ?>
+
+                    <!-- 빈 칸 (마지막 날 이후) -->
+                    <?php 
+                    $last_day_cells = ($first_day_of_month + $days_in_month) % 7;
+                    if ($last_day_cells > 0):
+                        for ($i = 0; $i < (7 - $last_day_cells); $i++): ?>
+                            <div class="calendar-day empty"></div>
+                        <?php endfor;
+                    endif;
+                    ?>
+                </div>
             </div>
 
         </div>
@@ -320,6 +406,12 @@ try {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Tooltip/Popover 활성화
+const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+const popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+  return new bootstrap.Popover(popoverTriggerEl)
+})
+
 // Chart.js 데이터 준비
 const unifiedData = <?php echo json_encode($unified_progress_data ?? []); ?>;
 const labels = unifiedData.map(d => d.name);
