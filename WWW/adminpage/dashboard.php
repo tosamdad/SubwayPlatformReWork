@@ -160,8 +160,11 @@ try {
         FROM platforms p
         JOIN sites s ON p.site_id = s.site_id
         JOIN constructions c ON s.const_id = c.const_id
-        JOIN items i ON (i.platform_id IS NULL OR i.platform_id = p.platform_id)
-        WHERE i.role_type = 'Safety' AND i.is_excluded = 0 $admin_filter
+        JOIN items i ON i.admin_id = c.admin_id
+        WHERE i.role_type = 'Safety' 
+        AND i.is_excluded = 0 
+        AND (i.platform_id IS NULL OR i.platform_id = p.platform_id)
+        $admin_filter
         GROUP BY p.platform_id
     ";
     $totals_res = $pdo->query($sql_totals)->fetchAll();
