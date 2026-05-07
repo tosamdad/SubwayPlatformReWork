@@ -152,6 +152,25 @@ $month = date('m', strtotime($view_month));
 $first_day_of_month = date('w', strtotime("$view_month-01"));
 $days_in_month = date('t', strtotime("$view_month-01"));
 
+// 3-1. 모든 승강장의 안전 항목 총 개수 미리 계산
+$platform_safety_totals = [];
+try {
+    $sql_totals = "
+        SELECT p.platform_id, SUM(i.photo_count) as total
+        FROM platforms p
+        JOIN sites s ON p.site_id = s.site_id
+        JOIN constructions c ON s.const_id = c.const_id
+        JOIN items i ON (i.platform_id IS NULL OR i.platform_id = p.platform_id)
+        WHERE i.role_type = 'Safety' AND i.is_excluded = 0 $admin_filter
+        GROUP BY p.platform_id
+    ";
+    $totals_res = $pdo->query($sql_totals)->fetchAll();
+    foreach ($totals_res as $tr) {
+        $platform_safety_totals[$tr['platform_id']] = $tr['total'];
+    }
+} catch (Exception $e) {}
+
+// 3-2. 일자별 점검 내역 조회
 $safety_calendar_data = [];
 try {
     $sql_cal = "
@@ -160,14 +179,7 @@ try {
             p.platform_id,
             p.platform_name, 
             s.site_name,
-            COUNT(pl.log_id) as uploaded_count,
-            (SELECT SUM(i2.photo_count) 
-             FROM items i2 
-             WHERE i2.role_type = 'Safety' 
-             AND i2.is_excluded = 0
-             AND (i2.platform_id IS NULL OR i2.platform_id = p.platform_id)
-             AND i2.admin_id = c.admin_id
-            ) as total_required
+            COUNT(pl.log_id) as uploaded_count
         FROM photo_logs pl
         JOIN items i ON pl.item_id = i.item_id
         JOIN platforms p ON pl.platform_id = p.platform_id
@@ -175,13 +187,14 @@ try {
         JOIN constructions c ON s.const_id = c.const_id
         WHERE i.role_type = 'Safety' $admin_filter
         AND DATE_FORMAT(pl.timestamp, '%Y-%m') = " . $pdo->quote($view_month) . "
-        GROUP BY work_date, p.platform_id
-        ORDER BY work_date ASC, s.site_id ASC, p.platform_id ASC
+        GROUP BY work_date, p.platform_id, p.platform_name, s.site_name
+        ORDER BY work_date ASC, s.site_name ASC, p.platform_id ASC
     ";
     $cal_results = $pdo->query($sql_cal)->fetchAll();
     foreach ($cal_results as $row) {
+        $pid = $row['platform_id'];
         $up = (int)$row['uploaded_count'];
-        $total = (int)$row['total_required'];
+        $total = (int)($platform_safety_totals[$pid] ?? 0);
         $percent = $total > 0 ? round(($up / $total) * 100) : 0;
         
         $safety_calendar_data[$row['work_date']][] = [
@@ -267,7 +280,7 @@ try {
             letter-spacing: 0.05em;
         }
         .calendar-day.empty { background: #f8fafc; }
-        .calendar-day.today { background: #f0f9ff; }
+        .calendar-day.today { background: #eff6ff; border: 2px solid #3b82f6 !important; }
         .calendar-day .day-num { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem; display: block; color: #475569; }
         .calendar-day.today .day-num { color: #2563eb; }
         
