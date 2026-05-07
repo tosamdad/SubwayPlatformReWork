@@ -371,16 +371,17 @@ if ($platform_id) {
                             <a href="?site_id=<?php echo $site_id; ?>&platform_id=<?php echo $platform_id; ?>&role=Worker" 
                                class="btn <?php echo $role_filter == 'Worker' ? 'btn-success' : 'btn-light'; ?> rounded-pill px-3">작업자</a>
                         </div>
-                    <div class="text-muted small fw-medium">
-                        항목수: <span class="text-dark fw-bold">
-                            <?php 
-                            $active_count = 0;
-                            foreach($items as $it) {
-                                if(!($it['is_excluded'] > 0) && $it['is_visible_mobile'] == 1) $active_count++;
-                            }
-                            echo $active_count;
-                            ?>개
-                        </span>
+                        <div class="text-muted small fw-medium">
+                            항목수: <span class="text-dark fw-bold">
+                                <?php 
+                                $active_count = 0;
+                                foreach($items as $it) {
+                                    if(!($it['is_excluded'] > 0) && $it['is_visible_mobile'] == 1) $active_count++;
+                                }
+                                echo $active_count;
+                                ?>개
+                            </span>
+                        </div>
                     </div>
                 </div>
 
