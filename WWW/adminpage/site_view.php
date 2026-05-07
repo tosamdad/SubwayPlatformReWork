@@ -111,14 +111,14 @@ if ($platform_id) {
 
         $stats = [
             'All' => [
-                'total' => $all_total_view,
-                'uploaded' => $all_up_view,
-                'progress' => ($all_total_view > 0) ? round(($all_up_view / $all_total_view) * 100) : 0
+                'total' => $w_total + $s_total,
+                'uploaded' => $w_up + $s_up,
+                'progress' => ($w_total + $s_total > 0) ? round(($w_up + $s_up) / ($w_total + $s_total) * 100) : 0
             ],
             'Safety' => [
-                'total' => $s_total_view,
-                'uploaded' => $s_up_view,
-                'progress' => ($s_total_view > 0) ? round(($s_up_view / $s_total_view) * 100) : 0
+                'total' => $s_total,
+                'uploaded' => $s_up,
+                'progress' => ($s_total > 0) ? round(($s_up / $s_total) * 100) : 0
             ],
             'Worker' => [
                 'total' => $w_total,
@@ -144,7 +144,7 @@ if ($platform_id) {
                    (SELECT COUNT(*) FROM platform_excluded_items WHERE platform_id = ? AND item_id = i.item_id) as is_excluded
             FROM items i
             WHERE (
-                (i.platform_id IS NULL $admin_filter_sql)
+                (i.platform_id IS NULL $admin_item_filter)
                 OR i.platform_id = ?
             )
             $where_role_sql
