@@ -12,6 +12,9 @@ $user_name = $_SESSION['user_name'];
 $role_type = $_SESSION['role_type'] ?? 'Worker';
 $parent_admin_id = $_SESSION['parent_admin_id'] ?? '';
 
+// 날짜 파라미터 수신 (안전관리자용)
+$selected_date = $_GET['date'] ?? date('Y-m-d');
+
 // 1. 최근 작업 승강장 조회 (가장 최근에 사진을 올린 곳)
 $recent_platform = null;
 try {
@@ -63,7 +66,7 @@ try {
                 $total_cnt = (int)$stmt_total->fetchColumn();
 
                 // 완료된 사진 개수
-                $stmt_done = $pdo->prepare("
+                $sql_done = "
                     SELECT COUNT(*) FROM photo_logs pl
                     JOIN items i ON pl.item_id = i.item_id
                     WHERE pl.platform_id = ? AND i.role_type = ?
@@ -71,7 +74,11 @@ try {
                         (i.platform_id IS NULL AND i.admin_id = ? AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?))
                         OR i.platform_id = ?
                     )
-                ");
+                ";
+                if ($role_type === 'Safety') {
+                    $sql_done .= " AND DATE(pl.timestamp) = " . $pdo->quote($selected_date);
+                }
+                $stmt_done = $pdo->prepare($sql_done);
                 $stmt_done->execute([$p['platform_id'], $role_type, $parent_admin_id, $p['platform_id'], $p['platform_id']]);
                 $done_cnt = (int)$stmt_done->fetchColumn();
 
@@ -150,18 +157,32 @@ include_once 'inc/nav.php';
     <?php endif; ?>
 
     <?php if ($role_type === 'Safety'): ?>
-    <!-- 안전관리자 전용 날짜 선택 UI -->
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 1.25rem;">
-        <div class="card-body p-3">
-            <div class="d-flex align-items-center gap-2 mb-2">
-                <i class="bi bi-calendar-check-fill text-primary"></i>
-                <span class="fw-bold text-dark">점검 일자 선택</span>
+    <!-- 안전관리자 전용 날짜 선택 UI (고급스러운 디자인) -->
+    <div class="card border-0 shadow-sm mb-4 overflow-hidden" style="border-radius: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="bg-primary bg-opacity-10 p-2 rounded-3">
+                        <i class="bi bi-calendar-check-fill text-primary fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted" style="font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em;">AUDIT DATE</div>
+                        <div class="fw-bold text-dark" style="font-size: 1.1rem;">안전 점검 일자</div>
+                    </div>
+                </div>
+                <div class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-bold">
+                    일별 관리 모드
+                </div>
             </div>
-            <div class="input-group">
-                <input type="date" id="targetDate" class="form-control border-0 bg-light" style="border-radius: 0.75rem; font-weight: 700;" value="<?php echo date('Y-m-d'); ?>">
+            <div class="position-relative">
+                <input type="date" id="targetDate" class="form-control form-control-lg border-0 shadow-sm" 
+                       style="border-radius: 1rem; font-weight: 800; background: white; padding-left: 3rem; color: #1e293b;" 
+                       value="<?php echo h($selected_date); ?>">
+                <i class="bi bi-calendar3 position-absolute top-50 start-0 translate-middle-y ms-3 text-primary fs-5" style="pointer-events: none;"></i>
             </div>
-            <div class="mt-2 small text-muted">
-                <i class="bi bi-info-circle me-1"></i> 안전 점검은 선택한 날짜의 데이터로 관리됩니다.
+            <div class="mt-3 d-flex align-items-center gap-2 small text-muted bg-white p-2 px-3 rounded-pill border border-light shadow-sm" style="width: fit-content;">
+                <i class="bi bi-info-circle-fill text-info"></i> 
+                <span>선택한 날짜의 공정률이 아래 목록에 반영됩니다.</span>
             </div>
         </div>
     </div>
@@ -169,7 +190,15 @@ include_once 'inc/nav.php';
         document.addEventListener('DOMContentLoaded', function() {
             const dateInput = document.getElementById('targetDate');
             
-            // 모든 승강장 링크에 날짜 파라미터 동적 추가
+            // 날짜 변경 시 페이지 새로고침 (진행률 동기화)
+            dateInput.addEventListener('change', function() {
+                const selectedDate = this.value;
+                const url = new URL(window.location.href);
+                url.searchParams.set('date', selectedDate);
+                window.location.href = url.pathname + url.search;
+            });
+
+            // 승강장 링크에 날짜 파라미터 유지
             function updateLinks() {
                 const selectedDate = dateInput.value;
                 document.querySelectorAll('.plat-btn, #recentBtn').forEach(btn => {
@@ -178,9 +207,7 @@ include_once 'inc/nav.php';
                     btn.href = url.pathname + url.search;
                 });
             }
-
-            dateInput.addEventListener('change', updateLinks);
-            updateLinks(); // 초기 실행
+            updateLinks();
         });
     </script>
     <?php endif; ?>
