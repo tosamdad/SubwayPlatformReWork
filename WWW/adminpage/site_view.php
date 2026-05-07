@@ -59,6 +59,12 @@ if ($platform_id) {
             $admin_item_filter = " AND admin_id = " . $pdo->quote($user_id);
         }
 
+        // 안전 점검 일수 계산 (통계용)
+        $stmt_safety_days = $pdo->prepare("SELECT COUNT(DISTINCT DATE(pl.timestamp)) FROM photo_logs pl JOIN items i ON pl.item_id = i.item_id WHERE pl.platform_id = ? AND i.role_type = 'Safety'");
+        $stmt_safety_days->execute([$platform_id]);
+        $safety_day_count = (int)$stmt_safety_days->fetchColumn();
+        if ($safety_day_count < 1) $safety_day_count = 1;
+
         $stats = [];
         foreach (['All', 'Safety', 'Worker'] as $r) {
             $where_role = ($r === 'All') ? "" : " AND role_type = '$r' ";
@@ -87,6 +93,21 @@ if ($platform_id) {
             ");
             $stmt_uploaded->execute([$platform_id, $platform_id, $platform_id]);
             $uploaded_count = (int)$stmt_uploaded->fetchColumn();
+
+            // 안전 항목의 경우 전체 기간(일수)을 고려하여 총 개수 산정
+            if ($r === 'Safety') {
+                $total_count = $total_count * $safety_day_count;
+                // 안전 항목은 일자별로 누적되므로 COUNT(*) 사용 (DISTINCT 해제)
+                $stmt_uploaded_raw = $pdo->prepare("
+                    SELECT COUNT(*) FROM photo_logs pl
+                    JOIN items i ON pl.item_id = i.item_id
+                    WHERE pl.platform_id = ? AND i.is_visible_mobile = 1
+                    AND ( (i.platform_id IS NULL $admin_filter_sql AND i.item_id NOT IN (SELECT item_id FROM platform_excluded_items WHERE platform_id = ?)) OR i.platform_id = ? )
+                    AND i.role_type = 'Safety'
+                ");
+                $stmt_uploaded_raw->execute([$platform_id, $platform_id, $platform_id]);
+                $uploaded_count = (int)$stmt_uploaded_raw->fetchColumn();
+            }
             
             $progress = ($total_count > 0) ? round(($uploaded_count / $total_count) * 100) : 0;
             
@@ -103,7 +124,8 @@ if ($platform_id) {
         
         $p_data = [
             'info' => $p_info,
-            'stats' => $stats
+            'stats' => $stats,
+            'safety_day_count' => $safety_day_count
         ];
 
         // 상세 공정 리스트 조회 (화면 표시용)
@@ -317,10 +339,13 @@ if ($platform_id) {
                                 <div class="stat-box">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <div class="small fw-bold opacity-50">안전관리 사진</div>
-                                        <div class="small opacity-75"><?php echo $p_data['stats']['Safety']['uploaded']; ?>/<?php echo $p_data['stats']['Safety']['total']; ?></div>
+                                        <div class="small opacity-75">
+                                            <span class="badge bg-white text-warning me-1" style="font-size: 0.6rem;">점검 <?php echo $p_data['safety_day_count']; ?>일</span>
+                                            <?php echo $p_data['stats']['Safety']['uploaded']; ?>/<?php echo $p_data['stats']['Safety']['total']; ?>
+                                        </div>
                                     </div>
                                     <div class="fs-3 fw-bold text-warning"><?php echo $p_data['stats']['Safety']['progress']; ?>%</div>
-                                    <div class="progress-bar-custom"><div class="fill fill-safety" style="width: <?php echo $p_data['stats']['Safety']['progress']; ?>%"></div></div>
+                                    <div class="progress-bar-custom"><div class="fill fill-safety" style="width: <?php echo min(100, $p_data['stats']['Safety']['progress']); ?>%"></div></div>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -503,7 +528,7 @@ if ($platform_id) {
                                         foreach ($items as $item) {
                                             if ($item['role_type'] !== 'Safety') continue;
                                             $s_logs = $safety_logs_by_date[$date][$item['item_id']] ?? [];
-                                            if (empty($s_logs)) continue;
+                                            // 사진이 없어도 작업자 항목처럼 카드 출력 (사용자 요청)
                                             renderAdminItemCard($item, $s_logs, $p_data, $item_memos);
                                         }
                                         ?>
