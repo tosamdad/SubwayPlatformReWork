@@ -344,12 +344,18 @@ $plat_name = h($platform['platform_name'] ?? '-');
 // 진행률 계산
 $progress_percent = $total_photos > 0 ? round(($completed_photos / $total_photos) * 100) : 0;
 
+// 날짜 표시용 배지 (안전관리자용 강조)
+$date_badge = ($role_type === 'Safety') ? "<span style='background: #fbbf24; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800; margin-right: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>{$selected_date} 점검</span>" : "";
+
 // 상단 타이틀용 커스텀 HTML 생성 (진행률 및 프로그래스 바 강조)
 $platform_html = "
     <div class='d-flex flex-column justify-content-center' style='line-height: 1.1; width: 100%; min-width: 220px; padding-right: 10px;'>
         <div class='d-flex justify-content-between align-items-end mb-1'>
-            <div>
-                <div style='font-size: 0.65rem; color: rgba(255,255,255,0.6); font-weight: 500; margin-bottom: 2px;'>{$site_name}" . ($role_type === 'Safety' ? " | {$selected_date} 점검" : "") . "</div>
+            <div class='d-flex flex-column'>
+                <div class='d-flex align-items-center mb-1'>
+                    {$date_badge}
+                    <div style='font-size: 0.65rem; color: rgba(255,255,255,0.6); font-weight: 500;'>{$site_name}</div>
+                </div>
                 <div style='font-size: 1.15rem; font-weight: 800; color: white; letter-spacing: -0.02em;'>{$plat_name}</div>
             </div>
             <div class='text-end pb-1' style='line-height: 1;'>

@@ -13,7 +13,7 @@ $role_type = $_SESSION['role_type'] ?? 'Worker';
 $parent_admin_id = $_SESSION['parent_admin_id'] ?? '';
 
 // 날짜 파라미터 수신 (안전관리자용)
-$selected_date = $_GET['date'] ?? date('Y-m-d');
+$selected_date = $_GET['date'] ?? ''; 
 
 // 1. 최근 작업 승강장 조회 (가장 최근에 사진을 올린 곳)
 $recent_platform = null;
@@ -212,48 +212,71 @@ include_once 'inc/nav.php';
     </script>
     <?php endif; ?>
 
-    <!-- 공사 트리 구조 리스트 -->
-    <?php if (empty($data_tree)): ?>
-        <div class="text-center py-5">
-            <i class="bi bi-folder-x fs-1 text-muted opacity-25"></i>
-            <p class="text-muted mt-3">할당된 공사 정보가 없습니다.</p>
-        </div>
-    <?php endif; ?>
-
-    <?php foreach ($data_tree as $const): ?>
-        <div class="const-group">
-            <div class="const-title"><?php echo h($const['const_name']); ?></div>
-            
-            <?php foreach ($const['sites'] as $site): ?>
-                <div class="site-card shadow-sm">
-                    <div class="site-name">
-                        <i class="bi bi-geo-alt-fill text-danger me-1"></i> <?php echo h($site['site_name']); ?>
-                    </div>
-                    
-                    <div class="plat-grid">
-                        <?php foreach ($site['platforms'] as $plat): ?>
-                            <a href="work_list.php?platform_id=<?php echo $plat['platform_id']; ?>" class="plat-btn shadow-sm">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="plat-name"><?php echo h($plat['platform_name']); ?></span>
-                                    <i class="bi bi-chevron-right text-muted small"></i>
-                                </div>
-                                <div class="mt-2">
-                                    <div class="d-flex justify-content-between align-items-end">
-                                        <span class="prog-text"><?php echo $plat['done']; ?> / <?php echo $plat['total']; ?> 완료</span>
-                                        <span class="prog-text text-primary"><?php echo $plat['progress']; ?>%</span>
-                                    </div>
-                                    <div class="progress-mini">
-                                        <div class="progress-mini-bar" style="width: <?php echo $plat['progress']; ?>%"></div>
-                                    </div>
-                                </div>
-                            </a>
-                        <?php foreach ($plat as $item) {} // dummy for loop for safety ?>
-                        <?php endforeach; ?>
-                    </div>
+    <?php if ($role_type === 'Safety' && empty($selected_date)): ?>
+        <!-- 날짜 미선택 시 안내 화면 -->
+        <div class="card border-0 shadow-sm mt-4 text-center py-5 px-4" style="border-radius: 1.5rem; background: #fff;">
+            <div class="mb-4">
+                <div class="bg-warning bg-opacity-10 d-inline-block p-4 rounded-circle mb-3">
+                    <i class="bi bi-calendar-event text-warning" style="font-size: 3.5rem;"></i>
                 </div>
-            <?php endforeach; ?>
+                <h4 class="fw-bold text-dark">점검 일자를 먼저 선택해 주세요</h4>
+                <p class="text-muted" style="word-break: keep-all;">안전 점검 데이터를 정확하게 기록하기 위해<br>상단에서 점검을 수행할 날짜를 선택해야 합니다.</p>
+            </div>
+            <div class="d-flex justify-content-center align-items-center gap-2 text-primary fw-bold">
+                <i class="bi bi-arrow-up-circle-fill fs-3 animate-bounce"></i>
+                <span>날짜를 선택하면 리스트가 나타납니다</span>
+            </div>
         </div>
-    <?php endforeach; ?>
+        <style>
+            @keyframes bounce {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-10px); }
+            }
+            .animate-bounce { animation: bounce 2s infinite; }
+        </style>
+    <?php else: ?>
+        <!-- 공사 트리 구조 리스트 -->
+        <?php if (empty($data_tree)): ?>
+            <div class="text-center py-5">
+                <i class="bi bi-folder-x fs-1 text-muted opacity-25"></i>
+                <p class="text-muted mt-3">할당된 공사 정보가 없습니다.</p>
+            </div>
+        <?php endif; ?>
+
+        <?php foreach ($data_tree as $const): ?>
+            <div class="const-group">
+                <div class="const-title"><?php echo h($const['const_name']); ?></div>
+                
+                <?php foreach ($const['sites'] as $site): ?>
+                    <div class="site-card shadow-sm">
+                        <div class="site-name">
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i> <?php echo h($site['site_name']); ?>
+                        </div>
+                        
+                        <div class="plat-grid">
+                            <?php foreach ($site['platforms'] as $plat): ?>
+                                <a href="work_list.php?platform_id=<?php echo $plat['platform_id']; ?>" class="plat-btn shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="plat-name"><?php echo h($plat['platform_name']); ?></span>
+                                        <i class="bi bi-chevron-right text-muted small"></i>
+                                    </div>
+                                    <div class="mt-2">
+                                        <div class="d-flex justify-content-between align-items-end">
+                                            <span class="prog-text"><?php echo $plat['done']; ?> / <?php echo $plat['total']; ?> 완료</span>
+                                            <span class="prog-text text-primary"><?php echo $plat['progress']; ?>%</span>
+                                        </div>
+                                        <div class="progress-mini">
+                                            <div class="progress-mini-bar" style="width: <?php echo $plat['progress']; ?>%"></div>
+                                        </div>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
 
 </div>
 
