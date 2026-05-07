@@ -36,11 +36,11 @@ if ($role === 'Admin') {
 }
 
 $stmt_logs = $pdo->prepare("
-    SELECT pl.photo_url, i.item_name, i.item_code, pl.photo_index
+    SELECT pl.photo_url, i.item_name, i.item_code, pl.photo_index, i.role_type, pl.timestamp
     FROM photo_logs pl
     JOIN items i ON pl.item_id = i.item_id
     WHERE pl.platform_id = ? $admin_item_filter
-    ORDER BY i.sort_order ASC, pl.photo_index ASC
+    ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC, pl.photo_index ASC
 ");
 $stmt_logs->execute([$platform_id]);
 $logs = $stmt_logs->fetchAll();
@@ -67,9 +67,10 @@ foreach ($logs as $l) {
     $original_name = basename($l['photo_url']);
     $ext = pathinfo($original_name, PATHINFO_EXTENSION);
     
-    // 변경될 파일명: 공사명_역명_승강장_키값_항목명_순번.확장자
+    // 변경될 파일명: 공사명_역명_승강장_(날짜)_항목명_순번.확장자 (아이템 코드 삭제)
     $clean_item_name = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $l['item_name']);
-    $new_name = $prefix . '_' . $l['item_code'] . '_' . $clean_item_name . '_' . $l['photo_index'] . '.' . $ext;
+    $date_part = ($l['role_type'] === 'Safety') ? date('Y-m-d', strtotime($l['timestamp'])) . '_' : '';
+    $new_name = $prefix . '_' . $date_part . $clean_item_name . '_' . $l['photo_index'] . '.' . $ext;
     $new_name = str_replace(['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>', ' '], '_', $new_name);
 
     // 윈도우용 rename 명령어 생성
