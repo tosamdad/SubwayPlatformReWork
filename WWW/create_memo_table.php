@@ -9,10 +9,11 @@ try {
         platform_id INT NOT NULL,
         item_id INT NOT NULL,
         memo_text TEXT,
+        memo_date DATE DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         user_id VARCHAR(50),
-        UNIQUE KEY idx_plat_item (platform_id, item_id)
+        UNIQUE KEY idx_plat_item_date (platform_id, item_id, memo_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
     
     $pdo->exec($sql);

@@ -176,12 +176,13 @@ if ($platform_id) {
     }
     rsort($safety_dates); // 최신 점검일 순
     
-    // 메모 데이터를 가져와서 맵핑
+    // 메모 데이터를 가져와서 맵핑 (항목ID와 날짜별로 저장)
     $item_memos = [];
-    $stmt_memos = $pdo->prepare("SELECT item_id, memo_text FROM item_memos WHERE platform_id = ?");
+    $stmt_memos = $pdo->prepare("SELECT item_id, memo_text, memo_date FROM item_memos WHERE platform_id = ?");
     $stmt_memos->execute([$platform_id]);
     while ($row = $stmt_memos->fetch()) {
-        $item_memos[$row['item_id']] = $row['memo_text'];
+        $m_date = $row['memo_date'] ?? '';
+        $item_memos[$row['item_id']][$m_date] = $row['memo_text'];
     }
 } catch (Exception $e) { $items = []; $item_logs = []; $item_memos = []; }
 }
@@ -469,6 +470,10 @@ if ($platform_id) {
                                     <div class="d-flex align-items-center justify-content-between mb-1">
                                         <code class="small"><?php echo h($item['item_code']); ?></code>
                                         <span class="badge <?php echo $item['role_type'] == 'Safety' ? 'bg-warning text-white' : 'bg-success'; ?> py-1 px-2" style="font-size: 0.6rem;"><?php echo h($item['role_type']); ?></span>
+                                        <?php $current_memo = $item_memos[$item['item_id']][$work_date] ?? ''; ?>
+                                        <button class="btn btn-sm p-0 ms-2 text-<?php echo !empty($current_memo) ? 'danger' : 'secondary opacity-50'; ?>" onclick="event.stopPropagation(); openMemoModal(<?php echo $item['item_id']; ?>, '<?php echo h($current_memo); ?>', '<?php echo $item['role_type']; ?>', '<?php echo $work_date; ?>')" title="메모">
+                                            <i class="bi bi-chat-text-fill"></i>
+                                        </button>
                                     </div>
                                     <div class="fw-bold text-dark text-truncate mb-1" title="<?php echo h($item['item_name']); ?>">
                                         <?php echo h($item['item_name']); ?>
@@ -495,10 +500,12 @@ if ($platform_id) {
                                         </div>
                                     <?php endif; ?>
                                     
-                                    <?php if (!empty($item_memos[$item['item_id']])): ?>
+                                    <?php 
+                                    if (!empty($current_memo)): 
+                                    ?>
                                         <div class="mt-2 p-2 rounded" style="background-color: #fff1f2; border: 1px solid #fecdd3; font-size: 0.75rem;">
                                             <div class="fw-bold text-danger mb-1"><i class="bi bi-chat-text-fill me-1"></i>특이사항 메모</div>
-                                            <div class="text-dark" style="word-break: keep-all; line-height: 1.4;"><?php echo nl2br(h($item_memos[$item['item_id']])); ?></div>
+                                            <div class="text-dark" style="word-break: keep-all; line-height: 1.4;"><?php echo nl2br(h($current_memo)); ?></div>
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -614,6 +621,26 @@ if ($platform_id) {
         <div class="d-flex gap-2">
             <button type="button" class="btn btn-light flex-fill rounded-pill py-2" data-bs-dismiss="modal">취소</button>
             <button type="button" id="customConfirmOkBtn" class="btn btn-danger flex-fill rounded-pill py-2">삭제하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 메모 팝업 모달 -->
+<div class="modal fade" id="memoModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+  <div class="modal-dialog modal-dialog-centered px-3">
+    <div class="modal-content border-0 shadow" style="border-radius: 16px;">
+      <div class="modal-header border-bottom-0 pb-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-journal-text me-2 text-primary"></i>특이사항 메모</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 pt-2">
+        <p class="text-muted small mb-3">해당 항목에 특이사항 이나 기입사항이 존재하면 기록해주세요</p>
+        <textarea id="memoTextarea" class="form-control" rows="4" placeholder="내용을 입력하세요..." style="border-radius: 8px; resize: none;"></textarea>
+        <div class="mt-4 d-flex gap-2">
+            <button type="button" class="btn btn-light flex-fill rounded-pill py-2 fw-bold" data-bs-dismiss="modal">취소</button>
+            <button type="button" id="saveMemoBtn" class="btn btn-primary flex-fill rounded-pill py-2 fw-bold">저장하기</button>
         </div>
       </div>
     </div>
@@ -794,6 +821,57 @@ document.getElementById('deletePhotoBtn').addEventListener('click', function() {
             btn.disabled = false;
         }
     });
+});
+
+let currentMemoItemId = null;
+let activeMemoRoleType = 'Worker';
+let activeMemoDate = '';
+let memoModalObj = null;
+
+function openMemoModal(itemId, existingText, roleType = 'Worker', workDate = '') {
+    currentMemoItemId = itemId;
+    activeMemoRoleType = roleType;
+    activeMemoDate = workDate;
+    document.getElementById('memoTextarea').value = existingText;
+    if (!memoModalObj) memoModalObj = new bootstrap.Modal(document.getElementById('memoModal'));
+    memoModalObj.show();
+}
+
+document.getElementById('saveMemoBtn').addEventListener('click', async function() {
+    if (!currentMemoItemId) return;
+    const btn = this;
+    const memoText = document.getElementById('memoTextarea').value;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 저장중...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('const_id', '<?php echo $site['const_id'] ?? 0; ?>');
+        formData.append('site_id', '<?php echo $site_id; ?>');
+        formData.append('platform_id', '<?php echo $platform_id; ?>');
+        formData.append('item_id', currentMemoItemId);
+        formData.append('memo_text', memoText);
+        // 안전관리자 항목일 때만 날짜를 포함하여 저장
+        if (activeMemoRoleType === 'Safety') {
+            formData.append('memo_date', activeMemoDate);
+        }
+
+        const response = await fetch('../user/api_save_memo.php', { method: 'POST', body: formData });
+        const result = await response.json();
+
+        if (result.success) {
+            memoModalObj.hide();
+            location.reload();
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        showAlert('저장 오류: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '저장하기';
+    }
 });
 </script>
 </body>

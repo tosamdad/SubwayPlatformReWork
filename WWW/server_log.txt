@@ -15653,4 +15653,16 @@ Stack trace:
 [2026-05-07 15:00:54.01] Changed directory to E:\SubwayPlatformReWork\WWW 
 [2026-05-07 15:00:54.01] Executing: "C:/Users/taimu/scoop/apps/php/current/php.exe" -S 0.0.0.0:8080 -t . 
 [Thu May  7 15:00:54 2026] PHP 8.2.30 Development Server (http://0.0.0.0:8080) started
-^C
+^C[2026-05-08 11:18:01.54] Starting web server script... 
+[2026-05-08 11:18:01.55] Changed directory to E:\SubwayPlatformReWork\WWW 
+[2026-05-08 11:18:01.55] Executing: "C:/Users/taimu/scoop/apps/php/current/php.exe" -S 0.0.0.0:8080 -t . 
+[Fri May  8 11:18:01 2026] PHP 8.2.30 Development Server (http://0.0.0.0:8080) started
+[Fri May  8 11:18:13 2026] 127.0.0.1:61271 Accepted
+[Fri May  8 11:18:13 2026] 127.0.0.1:59239 Accepted
+[Fri May  8 11:18:13 2026] 127.0.0.1:61271 [302]: GET /
+[Fri May  8 11:18:13 2026] 127.0.0.1:61271 Closing
+[Fri May  8 11:18:13 2026] 127.0.0.1:59239 [200]: GET /adminpage/index.php
+[Fri May  8 11:18:13 2026] 127.0.0.1:59239 Closing
+[Fri May  8 11:18:13 2026] 127.0.0.1:50342 Accepted
+[Fri May  8 11:18:13 2026] 127.0.0.1:50342 [404]: GET /favicon.ico - No such file or directory
+[Fri May  8 11:18:13 2026] 127.0.0.1:50342 Closing

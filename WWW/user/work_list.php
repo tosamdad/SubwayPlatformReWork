@@ -76,10 +76,10 @@ try {
         $logs[$row['item_id']][$row['photo_index']] = $row;
     }
     
-    // 모든 메모를 가져와서 맵핑
+    // 메모를 가져와서 맵핑 (작업자는 누적, 안전관리자는 날짜별)
     $memos = [];
-    $stmt_memos = $pdo->prepare("SELECT item_id, memo_text FROM item_memos WHERE platform_id = ?");
-    $stmt_memos->execute([$platform_id]);
+    $stmt_memos = $pdo->prepare("SELECT item_id, memo_text FROM item_memos WHERE platform_id = ? AND (memo_date = ? OR memo_date IS NULL)");
+    $stmt_memos->execute([$platform_id, $selected_date]);
     while ($row = $stmt_memos->fetch()) {
         $memos[$row['item_id']] = $row['memo_text'];
     }
@@ -432,7 +432,7 @@ include_once 'inc/nav.php';
                 $memo_text = $memos[$item['item_id']] ?? ''; 
                 $has_memo = !empty($memo_text);
                 ?>
-                <button class="btn btn-sm p-0 text-<?php echo $has_memo ? 'danger' : 'secondary opacity-50'; ?>" onclick="openMemoModal(<?php echo $item['item_id']; ?>, '<?php echo h($memo_text); ?>')" title="메모">
+                <button class="btn btn-sm p-0 text-<?php echo $has_memo ? 'danger' : 'secondary opacity-50'; ?>" onclick="openMemoModal(<?php echo $item['item_id']; ?>, '<?php echo h($memo_text); ?>', '<?php echo $item['role_type']; ?>')" title="메모">
                     <i class="bi bi-chat-text-fill fs-5"></i>
                 </button>
             </div>
@@ -805,11 +805,11 @@ document.getElementById('deletePhotoBtn').addEventListener('click', function() {
     });
 });
 
-let currentMemoItemId = null;
-let memoModalObj = null;
+let activeMemoRoleType = 'Worker';
 
-function openMemoModal(itemId, existingText) {
+function openMemoModal(itemId, existingText, roleType = 'Worker') {
     currentMemoItemId = itemId;
+    activeMemoRoleType = roleType;
     document.getElementById('memoTextarea').value = existingText;
     if (!memoModalObj) memoModalObj = new bootstrap.Modal(document.getElementById('memoModal'));
     memoModalObj.show();
@@ -830,6 +830,10 @@ document.getElementById('saveMemoBtn').addEventListener('click', async function(
         formData.append('platform_id', '<?php echo $platform_id; ?>');
         formData.append('item_id', currentMemoItemId);
         formData.append('memo_text', memoText);
+        // 안전관리자 항목일 때만 날짜를 포함하여 저장
+        if (activeMemoRoleType === 'Safety') {
+            formData.append('memo_date', '<?php echo $selected_date; ?>');
+        }
 
         const response = await fetch('api_save_memo.php', { method: 'POST', body: formData });
         const result = await response.json();
