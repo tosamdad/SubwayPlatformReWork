@@ -15671,3 +15671,7 @@ Stack trace:
 [Fri May  8 11:18:44 2026] 127.0.0.1:49797 [200]: GET /create_memo_table.php
 [Fri May  8 11:18:44 2026] 127.0.0.1:49797 Closing
 [Fri May  8 11:18:45 2026] 127.0.0.1:60936 Accepted
+[Fri May  8 11:24:08 2026] 127.0.0.1:59393 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri May  8 11:24:08 2026] 127.0.0.1:59393 Closing
+[Fri May  8 11:24:08 2026] 127.0.0.1:60936 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri May  8 11:24:08 2026] 127.0.0.1:60936 Closing

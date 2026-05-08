@@ -61,40 +61,21 @@ echo "\xEF\xBB\xBF";
 $output = fopen('php://output', 'w');
 
 // 헤더
-fputcsv($output, ['공사명', '역명', '승강장명', '항목키', '항목명', '순번', '현재파일명', '변경될파일명', '변경명령어(CMD)']);
-
-$prefix = $p_info['const_name'] . '_' . $p_info['site_name'] . '_' . $p_info['platform_name'];
-$prefix = preg_replace('/[\(\)\[\]\{\}]/', '', $prefix); 
-$prefix = preg_replace('/[^a-zA-Z0-9가-힣_\-]/u', '_', $prefix);
-$prefix = preg_replace('/_+/', '_', $prefix);
-$prefix = trim($prefix, '_');
+fputcsv($output, ['공사명', '역명', '승강장명', '구분', '점검일', '항목키', '항목명', '순번']);
 
 foreach ($logs as $l) {
-    $original_name = basename($l['photo_url']);
-    $ext = pathinfo($original_name, PATHINFO_EXTENSION);
-    
-    // 변경될 파일명: 공사명_역명_승강장_(날짜)_항목명_순번.확장자 (아이템 코드 삭제)
-    $clean_item_name = preg_replace('/[\(\)\[\]\{\}]/', '', $l['item_name']); 
-    $clean_item_name = preg_replace('/[^a-zA-Z0-9가-힣_\-]/u', '_', $clean_item_name);
-    $clean_item_name = preg_replace('/_+/', '_', $clean_item_name);
-    $clean_item_name = trim($clean_item_name, '_');
-
-    $date_part = ($l['role_type'] === 'Safety') ? date('Y-m-d', strtotime($l['timestamp'])) . '_' : '';
-    $new_name = $prefix . '_' . $date_part . $clean_item_name . '_' . $l['photo_index'] . '.' . $ext;
-
-    // 윈도우용 rename 명령어 생성
-    $rename_cmd = "ren \"$original_name\" \"$new_name\"";
+    $role_name = ($l['role_type'] === 'Safety') ? '안전' : '작업';
+    $work_date = date('Y-m-d', strtotime($l['timestamp']));
 
     fputcsv($output, [
         $p_info['const_name'],
         $p_info['site_name'],
         $p_info['platform_name'],
+        $role_name,
+        $work_date,
         $l['item_code'],
         $l['item_name'],
-        $l['photo_index'],
-        $original_name,
-        $new_name,
-        $rename_cmd
+        $l['photo_index']
     ]);
 }
 
