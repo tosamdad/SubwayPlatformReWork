@@ -53,6 +53,12 @@ if (!$platform_id && !empty($all_platforms)) {
 
 // 선택된 승강장 데이터 및 공정율 계산
 $p_data = null;
+$items = [];
+$worker_logs = [];
+$safety_logs_by_date = [];
+$safety_dates = [];
+$item_memos = [];
+
 if ($platform_id) {
     try {
         // 해당 현장 소유 관리자의 ID를 기준으로 항목 필터링 (다른 관리자의 중복 항목 방지)
@@ -152,11 +158,6 @@ if ($platform_id) {
         ");
         $stmt_items->execute([$platform_id, $platform_id]);
         $items = $stmt_items->fetchAll();
-
-    // 로그 가져오기 및 분류
-    $worker_logs = []; // [item_id][photo_index]
-    $safety_logs_by_date = []; // [date][item_id][photo_index]
-    $safety_dates = []; 
     
     $stmt_logs = $pdo->prepare("
         SELECT pl.*, i.role_type 
@@ -195,7 +196,7 @@ if ($platform_id) {
             }
         } catch (Exception $e2) {}
     }
-} catch (Exception $e) { $items = []; $item_logs = []; }
+} catch (Exception $e) {}
 }
 ?>
 <!DOCTYPE html>
@@ -482,7 +483,7 @@ if ($platform_id) {
                                         <code class="small"><?php echo h($item['item_code']); ?></code>
                                         <span class="badge <?php echo $item['role_type'] == 'Safety' ? 'bg-warning text-white' : 'bg-success'; ?> py-1 px-2" style="font-size: 0.6rem;"><?php echo h($item['role_type']); ?></span>
                                         <?php $current_memo = $item_memos[$item['item_id']][$work_date] ?? ''; ?>
-                                        <button class="btn btn-sm p-0 ms-2 text-<?php echo !empty($current_memo) ? 'danger' : 'secondary opacity-50'; ?>" onclick="event.stopPropagation(); openMemoModal(<?php echo $item['item_id']; ?>, '<?php echo h($current_memo); ?>', '<?php echo $item['role_type']; ?>', '<?php echo $work_date; ?>')" title="메모">
+                                        <button class="btn btn-sm p-0 ms-2 text-<?php echo !empty($current_memo) ? 'danger' : 'secondary opacity-50'; ?>" onclick='event.stopPropagation(); openMemoModal(<?php echo $item['item_id']; ?>, <?php echo json_encode($current_memo); ?>, "<?php echo $item['role_type']; ?>", "<?php echo $work_date; ?>")' title="메모">
                                             <i class="bi bi-chat-text-fill"></i>
                                         </button>
                                     </div>

@@ -31,6 +31,10 @@ $parent_admin_id = $_SESSION['parent_admin_id'] ?? '';
 // 날짜 파라미터 처리 (안전관리 일별 점검용)
 $selected_date = $_GET['date'] ?? date('Y-m-d');
 
+$items = [];
+$logs = [];
+$memos = [];
+
 try {
     // 본인(또는 상위 관리자)에게 귀속된 항목만 가져옴
     $admin_filter = "";
@@ -442,7 +446,7 @@ include_once 'inc/nav.php';
                 $memo_text = $memos[$item['item_id']] ?? ''; 
                 $has_memo = !empty($memo_text);
                 ?>
-                <button class="btn btn-sm p-0 text-<?php echo $has_memo ? 'danger' : 'secondary opacity-50'; ?>" onclick="openMemoModal(<?php echo $item['item_id']; ?>, '<?php echo h($memo_text); ?>', '<?php echo $item['role_type']; ?>')" title="메모">
+                <button class="btn btn-sm p-0 text-<?php echo $has_memo ? 'danger' : 'secondary opacity-50'; ?>" onclick='openMemoModal(<?php echo $item['item_id']; ?>, <?php echo json_encode($memo_text); ?>, "<?php echo $item['role_type']; ?>")' title="메모">
                     <i class="bi bi-chat-text-fill fs-5"></i>
                 </button>
             </div>
@@ -815,6 +819,8 @@ document.getElementById('deletePhotoBtn').addEventListener('click', function() {
     });
 });
 
+let currentMemoItemId = null;
+let memoModalObj = null;
 let activeMemoRoleType = 'Worker';
 
 function openMemoModal(itemId, existingText, roleType = 'Worker') {
