@@ -50,9 +50,6 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$platform_id, $platform_id]);
     $items = $stmt->fetchAll();
-
-    // 로그 가져오기: Worker는 전체 기간, Safety는 선택된 일자 기준
-    $logs = [];
     
     // 1. Worker 항목 로그 (전체 기간)
     $stmt_worker_logs = $pdo->prepare("
@@ -78,12 +75,25 @@ try {
     
     // 메모를 가져와서 맵핑 (작업자는 누적, 안전관리자는 날짜별)
     $memos = [];
-    $stmt_memos = $pdo->prepare("SELECT item_id, memo_text FROM item_memos WHERE platform_id = ? AND (memo_date = ? OR memo_date IS NULL)");
-    $stmt_memos->execute([$platform_id, $selected_date]);
-    while ($row = $stmt_memos->fetch()) {
-        $memos[$row['item_id']] = $row['memo_text'];
+    try {
+        $stmt_memos = $pdo->prepare("SELECT item_id, memo_text FROM item_memos WHERE platform_id = ? AND (memo_date = ? OR memo_date IS NULL)");
+        $stmt_memos->execute([$platform_id, $selected_date]);
+        while ($row = $stmt_memos->fetch()) {
+            $memos[$row['item_id']] = $row['memo_text'];
+        }
+    } catch (Exception $e) {
+        // memo_date 컬럼이 없을 경우를 대비한 폴백
+        try {
+            $stmt_memos = $pdo->prepare("SELECT item_id, memo_text FROM item_memos WHERE platform_id = ?");
+            $stmt_memos->execute([$platform_id]);
+            while ($row = $stmt_memos->fetch()) {
+                $memos[$row['item_id']] = $row['memo_text'];
+            }
+        } catch (Exception $e2) {}
     }
-} catch (Exception $e) { $items = []; $logs = []; $memos = []; }
+} catch (Exception $e) { 
+    // 에러 발생 시 로그를 남길 수 있음
+}
 ?>
 <!DOCTYPE html>
 <html lang="ko">

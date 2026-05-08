@@ -178,13 +178,24 @@ if ($platform_id) {
     
     // 메모 데이터를 가져와서 맵핑 (항목ID와 날짜별로 저장)
     $item_memos = [];
-    $stmt_memos = $pdo->prepare("SELECT item_id, memo_text, memo_date FROM item_memos WHERE platform_id = ?");
-    $stmt_memos->execute([$platform_id]);
-    while ($row = $stmt_memos->fetch()) {
-        $m_date = $row['memo_date'] ?? '';
-        $item_memos[$row['item_id']][$m_date] = $row['memo_text'];
+    try {
+        $stmt_memos = $pdo->prepare("SELECT item_id, memo_text, memo_date FROM item_memos WHERE platform_id = ?");
+        $stmt_memos->execute([$platform_id]);
+        while ($row = $stmt_memos->fetch()) {
+            $m_date = $row['memo_date'] ?? '';
+            $item_memos[$row['item_id']][$m_date] = $row['memo_text'];
+        }
+    } catch (Exception $e) {
+        // memo_date 컬럼이 없을 경우를 대비한 폴백
+        try {
+            $stmt_memos = $pdo->prepare("SELECT item_id, memo_text FROM item_memos WHERE platform_id = ?");
+            $stmt_memos->execute([$platform_id]);
+            while ($row = $stmt_memos->fetch()) {
+                $item_memos[$row['item_id']][''] = $row['memo_text'];
+            }
+        } catch (Exception $e2) {}
     }
-} catch (Exception $e) { $items = []; $item_logs = []; $item_memos = []; }
+} catch (Exception $e) { $items = []; $item_logs = []; }
 }
 ?>
 <!DOCTYPE html>
