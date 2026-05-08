@@ -16,7 +16,7 @@ if (!$platform_id) {
 
 // 1. 정보 조회
 $stmt_p = $pdo->prepare("
-    SELECT p.platform_name, s.site_name, c.const_name, c.admin_id 
+    SELECT p.platform_name, s.site_name, s.site_code, c.const_name, c.const_code, c.admin_id 
     FROM platforms p 
     JOIN sites s ON p.site_id = s.site_id 
     JOIN constructions c ON s.const_id = c.const_id 
@@ -36,11 +36,11 @@ if ($role === 'Admin') {
 }
 
 $stmt_logs = $pdo->prepare("
-    SELECT pl.photo_url, i.item_name, i.item_code, pl.photo_index, i.role_type, pl.timestamp
+    SELECT DISTINCT i.item_code, i.item_name, i.sort_order, i.role_type
     FROM photo_logs pl
     JOIN items i ON pl.item_id = i.item_id
     WHERE pl.platform_id = ? $admin_item_filter
-    ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC, pl.photo_index ASC
+    ORDER BY FIELD(i.role_type, 'Safety', 'Worker'), i.sort_order ASC
 ");
 $stmt_logs->execute([$platform_id]);
 $logs = $stmt_logs->fetchAll();
@@ -61,21 +61,16 @@ echo "\xEF\xBB\xBF";
 $output = fopen('php://output', 'w');
 
 // 헤더
-fputcsv($output, ['공사명', '역명', '승강장명', '구분', '점검일', '항목키', '항목명', '순번']);
+fputcsv($output, ['공사키', '공사명', '역사키', '역사명', '항목키', '항목명']);
 
 foreach ($logs as $l) {
-    $role_name = ($l['role_type'] === 'Safety') ? '안전' : '작업';
-    $work_date = date('Y-m-d', strtotime($l['timestamp']));
-
     fputcsv($output, [
+        $p_info['const_code'],
         $p_info['const_name'],
+        $p_info['site_code'],
         $p_info['site_name'],
-        $p_info['platform_name'],
-        $role_name,
-        $work_date,
         $l['item_code'],
-        $l['item_name'],
-        $l['photo_index']
+        $l['item_name']
     ]);
 }
 
