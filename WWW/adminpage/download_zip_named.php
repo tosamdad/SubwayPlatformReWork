@@ -159,7 +159,7 @@ if ($storage_type === 'r2') {
             $clean_item_name = preg_replace('/[^a-zA-Z0-9가-힣_\-]/u', '_', $clean_item_name);
             $clean_item_name = preg_replace('/_+/', '_', $clean_item_name);
             $clean_item_name = trim($clean_item_name, '_');
-            $date_part = ($l['role_type'] === 'Safety') ? '_' . date('Y-m-d', strtotime($l['timestamp'])) : '';
+            $date_part = ($l['role_type'] === 'Safety') ? '_' . date('Ymd', strtotime($l['timestamp'])) : '';
             $new_name = $prefix . '_' . $clean_item_name . $date_part . '_' . $l['photo_index'] . '.' . $ext;
             
             $zip->addFromString($new_name, $file_content);
@@ -176,7 +176,7 @@ if ($storage_type === 'r2') {
             $clean_item_name = preg_replace('/[^a-zA-Z0-9가-힣_\-]/u', '_', $clean_item_name);
             $clean_item_name = preg_replace('/_+/', '_', $clean_item_name);
             $clean_item_name = trim($clean_item_name, '_');
-            $date_part = ($l['role_type'] === 'Safety') ? '_' . date('Y-m-d', strtotime($l['timestamp'])) : '';
+            $date_part = ($l['role_type'] === 'Safety') ? '_' . date('Ymd', strtotime($l['timestamp'])) : '';
             $new_name = $prefix . '_' . $clean_item_name . $date_part . '_' . $l['photo_index'] . '.' . $ext;
 
             $zip->addFile($file_path, $new_name);
