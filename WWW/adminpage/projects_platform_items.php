@@ -285,7 +285,7 @@ while($row = $stmt_pcheck->fetch()) {
                     </div>
                     <div class="mb-0">
                         <label class="form-label fw-bold">필요 사진 수</label>
-                        <input type="number" name="photo_count" id="modalPhotoCount" class="form-control rounded-3" value="1" min="1" max="10">
+                        <input type="number" name="photo_count" id="modalPhotoCount" class="form-control rounded-3" value="1" min="1" max="20">
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">

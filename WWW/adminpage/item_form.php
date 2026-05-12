@@ -98,7 +98,7 @@ if ($mode == 'edit') {
                     <div class="mb-4">
                         <label class="form-label">촬영 사진 개수</label>
                         <div class="input-group" style="max-width: 150px;">
-                            <input type="number" name="photo_count" class="form-control" value="<?php echo $item ? (int)$item['photo_count'] : 1; ?>" min="1" max="10" required>
+                            <input type="number" name="photo_count" class="form-control" value="<?php echo $item ? (int)$item['photo_count'] : 1; ?>" min="1" max="20" required>
                             <span class="input-group-text">장</span>
                         </div>
                         <p class="text-muted x-small mt-1 mb-0">

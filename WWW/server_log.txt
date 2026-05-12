@@ -15675,3 +15675,13 @@ Stack trace:
 [Fri May  8 11:24:08 2026] 127.0.0.1:59393 Closing
 [Fri May  8 11:24:08 2026] 127.0.0.1:60936 Closed without sending a request; it was probably just an unused speculative preconnection
 [Fri May  8 11:24:08 2026] 127.0.0.1:60936 Closing
+[Fri May  8 14:27:42 2026] 127.0.0.1:55649 Accepted
+[Fri May  8 14:27:42 2026] 127.0.0.1:53576 Accepted
+[Fri May  8 14:27:42 2026] 127.0.0.1:55649 [200]: GET /adminpage/index.php
+[Fri May  8 14:27:42 2026] 127.0.0.1:55649 Closing
+[Fri May  8 14:27:43 2026] 127.0.0.1:54141 Accepted
+[Fri May  8 14:30:22 2026] 127.0.0.1:53576 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri May  8 14:30:22 2026] 127.0.0.1:53576 Closing
+[Fri May  8 14:30:22 2026] 127.0.0.1:54141 Closed without sending a request; it was probably just an unused speculative preconnection
+[Fri May  8 14:30:22 2026] 127.0.0.1:54141 Closing
+[2026-05-08 19:40:55.21] Error starting PHP server. Exit code: 1073807364. 
